@@ -1,8 +1,9 @@
-'''
+"""
 Softmax implementation (simple and not very graceful)
-'''
+"""
 
 import numpy as np
+
 
 def softmax(x):
     return np.exp(x) / np.sum(np.exp(x), axis=0)
