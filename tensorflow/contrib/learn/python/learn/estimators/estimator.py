@@ -61,6 +61,7 @@ from tensorflow.python.client import session as tf_session
 from tensorflow.python.framework import errors
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import random_seed
+from tensorflow.python.framework import sparse_tensor
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import data_flow_ops
 from tensorflow.python.ops import variables
@@ -474,7 +475,8 @@ class BaseEstimator(
                metrics=None,
                name=None,
                checkpoint_path=None,
-               hooks=None):
+               hooks=None,
+               log_progress=True):
     # pylint: disable=g-doc-args,g-doc-return-or-yield
     """See `Evaluable`.
 
@@ -496,7 +498,8 @@ class BaseEstimator(
         metrics=metrics,
         name=name,
         checkpoint_path=checkpoint_path,
-        hooks=hooks)
+        hooks=hooks,
+        log_progress=log_progress)
 
     if eval_results is not None:
       eval_results.update({'global_step': global_step})
@@ -841,7 +844,8 @@ class BaseEstimator(
                       metrics=None,
                       name='',
                       checkpoint_path=None,
-                      hooks=None):
+                      hooks=None,
+                      log_progress=True):
     # TODO(wicke): Remove this once Model and associated code are gone.
     if (hasattr(self._config, 'execution_mode') and
         self._config.execution_mode not in ('all', 'evaluate', 'eval_evalset')):
@@ -884,7 +888,9 @@ class BaseEstimator(
       if feed_fn:
         hooks.append(_FeedFnHook(feed_fn))
       if steps:
-        hooks.append(evaluation.StopAfterNEvalsHook(steps))
+        hooks.append(
+            evaluation.StopAfterNEvalsHook(
+                steps, log_progress=log_progress))
 
       global_step_key = 'global_step'
       while global_step_key in eval_dict:
@@ -1003,7 +1009,11 @@ class BaseEstimator(
           restore_checkpoint_path=checkpoint_path):
         # Unpack batches into individual predictions
         if return_dict:
-          batch_length = list(output_batch.values())[0].shape[0]
+          first_tensor = list(output_batch.values())[0]
+          if isinstance(first_tensor, sparse_tensor.SparseTensorValue):
+            batch_length = first_tensor.dense_shape[0]
+          else:
+            batch_length = first_tensor.shape[0]
           for i in range(batch_length):
             yield {key: value[i] for key, value in six.iteritems(output_batch)}
         else:
