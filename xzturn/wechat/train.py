@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import print_function
 import tensorflow as tf
 
@@ -47,6 +49,7 @@ def train(args):
 
     model = Model(args)
 
+    t_start = time.time()
     with tf.Session() as sess:
         # init variables
         sess.run(tf.global_variables_initializer())
@@ -77,6 +80,8 @@ def train(args):
                     checkpoint_path = os.path.join(args.save_dir, 'model.ckpt')
                     saver.save(sess, checkpoint_path, global_step=e * data_loader.num_batches + b)
                     print("model saved to {}".format(checkpoint_path))
+    t_end = time.time()
+    print("Total train time: {:.3f}".format(t_end - t_start))
 
 
 if __name__ == '__main__':
@@ -113,5 +118,4 @@ if __name__ == '__main__':
                                                   Note: this file contains absolute paths, be careful when moving files around;
                             'model.ckpt-*'      : file(s) with model definition (created by tf)
                         """)
-    args = parser.parse_args()
-    train(args)
+    train(parser.parse_args())

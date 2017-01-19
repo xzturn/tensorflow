@@ -3,11 +3,13 @@
 from __future__ import print_function
 
 import codecs
-import os
 import collections
+import jieba
 import json
-from six.moves import cPickle
+import os
 import numpy as np
+
+from six.moves import cPickle
 
 
 class WechatLoader:
@@ -25,7 +27,7 @@ class WechatLoader:
     }
     """
 
-    def __init__(self, corpus_file, batch_size, seq_length, encoding='utf-8'):
+    def __init__(self, corpus_file, batch_size, seq_length, cut=False, encoding='utf-8'):
         self._data_dir = os.path.join(os.path.abspath("."), "data")
         self._batch_size = batch_size
         self._seq_length = seq_length
@@ -33,25 +35,32 @@ class WechatLoader:
 
         if not os.path.exists(self._data_dir):
             os.mkdir(self._data_dir)
-        vocab_file = os.path.join(self._data_dir, "vocab.pkl")
-        tensor_file = os.path.join(self._data_dir, "data.npy")
+        _, prefix = os.path.split(corpus_file)
+        vocab_file = os.path.join(self._data_dir, "{}.vocab.pkl".format(prefix))
+        tensor_file = os.path.join(self._data_dir, "{}.data.npy".format(prefix))
 
         if not (os.path.exists(vocab_file) and os.path.exists(tensor_file)):
             print("reading corpus file")
-            self._preprocess(corpus_file, vocab_file, tensor_file)
+            self._preprocess(corpus_file, vocab_file, tensor_file, cut)
         else:
             print("loading preprocessed files")
             self._load_preprocessed(vocab_file, tensor_file)
         self._create_batches()
         self._pointer = 0
 
-    def _preprocess(self, corpus_file, vocab_file, tensor_file):
+    def _preprocess(self, corpus_file, vocab_file, tensor_file, cut=False):
         with codecs.open(corpus_file, "r", encoding=self._encoding) as fp:
             v = json.load(fp)
-        data = u""  # MUST be unicode here
-        for doc in v["documents"]:
-            data = data + doc["title"] + u"\n" + doc["content"] + u"\n\n"
-        counter = collections.Counter(data)
+        if cut:
+            w = list()
+            for doc in v["documents"]:
+                w.extend([t for t in jieba.cut(doc["content"], cut_all=False)])
+            counter = collections.Counter(w)
+        else:
+            data = u""  # MUST be unicode here
+            for doc in v["documents"]:
+                data = data + doc["title"] + u"\n" + doc["content"] + u"\n\n"
+            counter = collections.Counter(data)
         count_pairs = sorted(counter.items(), key=lambda x: -x[1])
         self._chars, _ = zip(*count_pairs)
         self._vocab_size = len(self._chars)
@@ -88,16 +97,16 @@ class WechatLoader:
         self._pointer = 0
 
     @property
-    def vocab_size(self):
-        return self._vocab_size
-
-    @property
     def chars(self):
         return self._chars
 
     @property
     def vocab(self):
         return self._vocab
+
+    @property
+    def vocab_size(self):
+        return self._vocab_size
 
     @property
     def num_batches(self):
@@ -120,11 +129,12 @@ if __name__ == "__main__":
     parser = OptionParser(USAGE)
     parser.add_option("-b", type="int", dest="batch_size", default=50)
     parser.add_option("-s", type="int", dest="seq_length", default=50)
+    parser.add_option("-c", action="store_true", dest="cut", default=False)
     opt, args = parser.parse_args()
 
     if len(args) < 1:
         print(USAGE)
         sys.exit(1)
 
-    loader = WechatLoader(args[0], opt.batch_size, opt.seq_length)
+    loader = WechatLoader(args[0], opt.batch_size, opt.seq_length, opt.cut)
     loader.debug()

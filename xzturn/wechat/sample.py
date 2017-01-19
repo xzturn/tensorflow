@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from __future__ import print_function
 
 import tensorflow as tf
@@ -35,6 +37,4 @@ if __name__ == '__main__':
                         help='prime text')
     parser.add_argument('--sample', type=int, default=1,
                         help='0 to use max at each time step, 1 to sample at each time step, 2 to sample on spaces')
-
-    args = parser.parse_args()
-    sample(args)
+    sample(parser.parse_args())
