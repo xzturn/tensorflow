@@ -16,7 +16,7 @@ import tensorflow as tf
 import time
 
 # cluster specification
-parameter_servers = ["localhost:2222"]
+parameter_servers = ["30.27.46.69:2222"]
 workers = ["45.79.87.147:2222", "182.254.155.218:2222"]
 cluster = tf.train.ClusterSpec({"ps": parameter_servers, "worker": workers})
 
