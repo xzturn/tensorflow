@@ -179,6 +179,7 @@ filegroup(
         "//tensorflow/contrib/slim/python/slim/data:all_files",
         "//tensorflow/contrib/slim/python/slim/nets:all_files",
         "//tensorflow/contrib/solvers:all_files",
+        "//tensorflow/contrib/sparsemax:all_files",
         "//tensorflow/contrib/specs:all_files",
         "//tensorflow/contrib/stat_summarizer:all_files",
         "//tensorflow/contrib/tensor_forest:all_files",
@@ -248,6 +249,20 @@ filegroup(
         "//third_party/sycl/sycl:all_files",
     ],
     visibility = [":__subpackages__"],
+)
+
+load(
+    "//third_party/mkl:build_defs.bzl",
+    "if_mkl",
+)
+
+filegroup(
+    name = "intel_binary_blob",
+    data = if_mkl(
+        [
+            "//third_party/mkl:intel_binary_blob",
+        ],
+    ),
 )
 
 # -------------------------------------------
