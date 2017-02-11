@@ -36,11 +36,17 @@ def check_version(bazel_version):
           native.bazel_version, bazel_version))
   pass
 
+def _repos_are_siblings():
+  return Label("@foo//bar").workspace_root.startswith("../")
+
 # Temporary workaround to support including TensorFlow as a submodule until this
 # use-case is supported in the next Bazel release.
 def _temp_workaround_http_archive_impl(repo_ctx):
    repo_ctx.template("BUILD", repo_ctx.attr.build_file,
-                     {"%ws%": repo_ctx.attr.repository}, False)
+                     {
+                         "%prefix%" : ".." if _repos_are_siblings() else "external",
+                         "%ws%": repo_ctx.attr.repository
+                     }, False)
    repo_ctx.download_and_extract(repo_ctx.attr.urls, "", repo_ctx.attr.sha256,
                                  "", repo_ctx.attr.strip_prefix)
 
@@ -214,11 +220,11 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
   native.http_archive(
       name = "protobuf",
       urls = [
-          "http://bazel-mirror.storage.googleapis.com/github.com/google/protobuf/archive/9d3288e651700f3d52e6b4ead2a9f9ab02da53f4.tar.gz",
-          "https://github.com/google/protobuf/archive/9d3288e651700f3d52e6b4ead2a9f9ab02da53f4.tar.gz",
+          "http://bazel-mirror.storage.googleapis.com/github.com/google/protobuf/archive/ef927cc428db7bf41d3a593a16a8f1a0fe6306c5.tar.gz",
+          "https://github.com/google/protobuf/archive/ef927cc428db7bf41d3a593a16a8f1a0fe6306c5.tar.gz",
       ],
-      sha256 = "4663e886f9bbea0121ce424e1620997a37d38c6299dc82183223a0401bbf70ed",
-      strip_prefix = "protobuf-9d3288e651700f3d52e6b4ead2a9f9ab02da53f4",
+      sha256 = "8813a4ab27f7c61565d0db17d69236b4ec0b1404371efc728f15079b85e457ca",
+      strip_prefix = "protobuf-ef927cc428db7bf41d3a593a16a8f1a0fe6306c5",
   )
 
   native.new_http_archive(
@@ -270,7 +276,7 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
       build_file = str(Label("//third_party:swig.BUILD")),
   )
 
-  native.new_http_archive(
+  temp_workaround_http_archive(
       name = "curl",
       sha256 = "ff3e80c1ca6a068428726cd7dd19037a47cc538ce58ef61c59587191039b2ca6",
       urls = [
