@@ -50,9 +50,12 @@ class MakeBatchReadyTest(test.TestCase):
     return self._rng.random_sample(sample_shape).astype(dtype)
 
   def _get_expected(self, x, batch_ndims, event_ndims, expand_batch_dim):
-    n = int(x.ndim - batch_ndims - event_ndims)
-    sample_shape = x.shape[0:n]
-    y = np.reshape(x, np.concatenate([[-1], x.shape[n:]], 0))
+    # Cast as int32 array explicitly, since an empty x.shape defaults
+    # to float64, and we can't index as float64 in numpy 1.12+.
+    x_shape = np.array(x.shape, dtype=np.int32)
+    n = x.ndim - batch_ndims - event_ndims
+    sample_shape = x_shape[:n]
+    y = np.reshape(x, np.concatenate([[-1], x_shape[n:]], 0))
     y = np.transpose(y, np.roll(np.arange(y.ndim), -1))
     if event_ndims == 0:
       y = y[..., np.newaxis, :]
@@ -154,7 +157,6 @@ class MakeBatchReadyTest(test.TestCase):
                         expand_batch_dim=True)
 
   # Group 1b: Dynamic scalar input.
-
   def testDynamicScalar3Ndims00ExpandNo(self):
     self._test_dynamic(x=self._random_sample([]),
                        batch_ndims=0,

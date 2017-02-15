@@ -1190,12 +1190,16 @@ cc_library(
         "platform/host_info.h",
         "platform/platform.h",
         "platform/protobuf_internal.h",
+        "platform/setround.h",
         "platform/tensor_coding.h",
         "platform/tracing.h",
     ],
     copts = tf_copts(),
     defines = tf_additional_lib_defines(),
-    linkopts = ["-ldl"],
+    linkopts = select({
+        "//tensorflow:freebsd": [],
+        "//conditions:default": ["-ldl"],
+    }),
     deps = tf_additional_lib_deps() + [
         ":lib_hash_crc32c_accelerate_internal",
         ":lib_proto_parsing",
@@ -1222,7 +1226,10 @@ cc_library(
     ],
     hdrs = ["lib/gif/gif_io.h"],
     copts = tf_copts(),
-    linkopts = ["-ldl"],
+    linkopts = select({
+        "//tensorflow:freebsd": [],
+        "//conditions:default": ["-ldl"],
+    }),
     deps = [
         ":lib",
         "//tensorflow/core/platform/default/build_config:gif",
@@ -1241,7 +1248,10 @@ cc_library(
         "lib/jpeg/jpeg_mem.h",
     ],
     copts = tf_copts(),
-    linkopts = ["-ldl"],
+    linkopts = select({
+        "//tensorflow:freebsd": [],
+        "//conditions:default": ["-ldl"],
+    }),
     deps = [
         ":lib",
         "//tensorflow/core/platform/default/build_config:jpeg",
@@ -1319,8 +1329,10 @@ tf_cuda_library(
         "util/tensor_slice_util.h",
     ],
     copts = tf_copts(),
-    linkopts = [
-        "-ldl",
+    linkopts = select({
+        "//tensorflow:freebsd": [],
+        "//conditions:default": ["-ldl"],
+    }) + [
         "-lm",
     ],
     deps = [
@@ -1696,6 +1708,7 @@ tf_cc_tests(
         "platform/net_test.cc",
         "platform/port_test.cc",
         "platform/profile_utils/cpu_utils_test.cc",
+        "platform/setround_test.cc",
         "platform/subprocess_test.cc",
     ],
     deps = [
