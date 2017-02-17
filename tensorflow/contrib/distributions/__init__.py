@@ -37,6 +37,7 @@ See the @{$python/contrib.distributions} guide.
 @@Laplace
 @@LaplaceWithSoftplusScale
 @@Logistic
+@@NegativeBinomial
 @@Normal
 @@NormalWithSoftplusScale
 @@Poisson
@@ -81,8 +82,6 @@ from __future__ import print_function
 
 # pylint: disable=unused-import,wildcard-import,line-too-long,g-importing-member
 
-from tensorflow.contrib.distributions.python.ops import bijector
-from tensorflow.contrib.distributions.python.ops import conditional_bijector
 from tensorflow.contrib.distributions.python.ops.bernoulli import *
 from tensorflow.contrib.distributions.python.ops.beta import *
 from tensorflow.contrib.distributions.python.ops.binomial import *
@@ -107,6 +106,7 @@ from tensorflow.contrib.distributions.python.ops.multinomial import *
 from tensorflow.contrib.distributions.python.ops.mvn_diag import *
 from tensorflow.contrib.distributions.python.ops.mvn_diag_plus_low_rank import *
 from tensorflow.contrib.distributions.python.ops.mvn_tril import *
+from tensorflow.contrib.distributions.python.ops.negative_binomial import *
 from tensorflow.contrib.distributions.python.ops.normal import *
 from tensorflow.contrib.distributions.python.ops.normal_conjugate_posteriors import *
 from tensorflow.contrib.distributions.python.ops.onehot_categorical import *
@@ -123,8 +123,7 @@ from tensorflow.contrib.distributions.python.ops.wishart import *
 
 from tensorflow.python.util.all_util import remove_undocumented
 
-_allowed_symbols = ['bijector',
-                    'ConditionalDistribution',
+_allowed_symbols = ['ConditionalDistribution',
                     'ConditionalTransformedDistribution',
                     'FULLY_REPARAMETERIZED', 'NOT_REPARAMETERIZED']
 
