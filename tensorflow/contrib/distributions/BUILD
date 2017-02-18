@@ -835,6 +835,7 @@ cuda_py_test(
         "//tensorflow/python:math_ops",
         "//tensorflow/python:platform_test",
     ],
+    shard_count = 5,
 )
 
 cuda_py_test(
@@ -974,6 +975,25 @@ cuda_py_test(
     name = "power_transform_test",
     size = "small",
     srcs = ["python/kernel_tests/bijectors/power_transform_test.py"],
+    additional_deps = [
+        ":bijectors_py",
+        ":distributions_py",
+        "//third_party/py/numpy",
+        "@six_archive//:six",
+        "//tensorflow/contrib/linalg:linalg_py",
+        "//tensorflow/python:array_ops",
+        "//tensorflow/python:client_testlib",
+        "//tensorflow/python:framework_for_generated_wrappers",
+        "//tensorflow/python:framework_test_lib",
+        "//tensorflow/python:math_ops",
+        "//tensorflow/python:platform_test",
+    ],
+)
+
+cuda_py_test(
+    name = "sigmoid_test",
+    size = "small",
+    srcs = ["python/kernel_tests/bijectors/sigmoid_test.py"],
     additional_deps = [
         ":bijectors_py",
         ":distributions_py",
