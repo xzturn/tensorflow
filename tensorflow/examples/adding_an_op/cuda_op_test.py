@@ -1,4 +1,4 @@
-# Copyright 2017 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,21 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Handles pandas import for tensorflow."""
+"""Test for version 1 of the zero_out op."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as _  # pylint: disable=unused-import
+import tensorflow as tf
+from tensorflow.examples.adding_an_op import cuda_op
 
-try:
-  # pylint: disable=g-import-not-at-top
-  # pylint: disable=unused-import
-  import pandas as _
-  HAS_PANDAS = True
-except IOError:
-  # Pandas writes a temporary file during import. If it fails, don't use pandas.
-  HAS_PANDAS = False
-except ImportError:
-  HAS_PANDAS = False
+
+class AddOneTest(tf.test.TestCase):
+
+  def test(self):
+    if tf.test.is_built_with_cuda():
+      with self.test_session():
+        result = cuda_op.add_one([5, 4, 3, 2, 1])
+        self.assertAllEqual(result.eval(), [6, 5, 4, 3, 2])
+
+
+if __name__ == '__main__':
+  tf.test.main()

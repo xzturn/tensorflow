@@ -197,6 +197,10 @@ tf_proto_library(
     visibility = ["//visibility:public"],
 )
 
+exports_files([
+    "framework/types.proto",
+])
+
 tf_proto_library(
     name = "protos_test",
     srcs = ["util/example_proto_fast_parsing_test.proto"],
@@ -1881,7 +1885,6 @@ tf_cc_tests(
         "graph/algorithm_test.cc",
         "graph/edgeset_test.cc",
         "graph/equal_graph_def_test.cc",
-        "graph/graph_constructor_test.cc",
         "graph/graph_def_builder_test.cc",
         "graph/graph_partition_test.cc",
         "graph/graph_test.cc",
@@ -1916,6 +1919,42 @@ tf_cc_tests(
     }),
     linkstatic = tf_kernel_tests_linkstatic(),
     deps = [
+        ":core",
+        ":core_cpu",
+        ":core_cpu_internal",
+        ":direct_session_internal",
+        ":framework",
+        ":framework_internal",
+        ":lib",
+        ":lib_internal",
+        ":ops",
+        ":protos_all_cc",
+        ":protos_test_cc",
+        ":test",
+        ":test_main",
+        ":testlib",
+        "//tensorflow/cc:cc_ops",
+        "//tensorflow/cc:cc_ops_internal",
+        "//tensorflow/cc:scope",
+        "//tensorflow/cc:sendrecv_ops",
+        "//tensorflow/core/kernels:ops_util",
+        "//third_party/eigen3",
+    ],
+)
+
+tf_cc_tests(
+    name = "higher_level_tests_needing_kernels",
+    size = "small",
+    srcs = [
+        "graph/graph_constructor_test.cc",
+    ],
+    linkopts = select({
+        "//tensorflow:darwin": ["-headerpad_max_install_names"],
+        "//conditions:default": [],
+    }),
+    linkstatic = tf_kernel_tests_linkstatic(),
+    deps = [
+        ":all_kernels",
         ":core",
         ":core_cpu",
         ":core_cpu_internal",
@@ -2177,6 +2216,7 @@ tf_cc_test(
     srcs = ["common_runtime/direct_session_with_tracking_alloc_test.cc"],
     args = ["--heap_check=local"],  # The GPU tracer leaks memory
     linkstatic = tf_kernel_tests_linkstatic(),
+    tags = ["no_gpu"],
     deps = [
         ":core",
         ":core_cpu",
@@ -2392,6 +2432,7 @@ tf_cc_test(
     size = "small",
     srcs = ["ops/math_grad_test.cc"],
     linkstatic = tf_kernel_tests_linkstatic(),
+    tags = ["no_gpu"],
     deps = [
         ":core",
         ":core_cpu",
