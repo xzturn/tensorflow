@@ -3,8 +3,7 @@
 # Known limitations:
 # * Generates output in a hard-coded path ${CMAKE_CURRENT_BINARY_DIR}/tf_python.
 # * No support for dynamic library loading.
-# * No support for tf.contrib. (TODO(mrry): Add rules for building op libraries.)
-# * No support for Python 3. (TODO(mrry): Add override for FindPythonInterp.)
+# * Limited support for tf.contrib.
 #
 # The _pywrap_tensorflow_internal target builds everything.
 
@@ -521,6 +520,7 @@ GENERATE_PYTHON_OP_LIB("sdca_ops")
 GENERATE_PYTHON_OP_LIB("set_ops")
 GENERATE_PYTHON_OP_LIB("state_ops")
 GENERATE_PYTHON_OP_LIB("sparse_ops")
+GENERATE_PYTHON_OP_LIB("spectral_ops")
 GENERATE_PYTHON_OP_LIB("string_ops")
 GENERATE_PYTHON_OP_LIB("user_ops")
 GENERATE_PYTHON_OP_LIB("training_ops"
