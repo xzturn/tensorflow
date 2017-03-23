@@ -21,9 +21,9 @@ def sample(args):
             print(saved_args)
     with open(os.path.join(args.save_dir, 'chars_vocab.pkl'), 'rb') as f:
         chars, vocab = cPickle.load(f)
-    model = Model(saved_args, True)
+    model = Model(saved_args, training=False)
     with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
+        tf.global_variables_initializer().run()
         saver = tf.train.Saver(tf.global_variables())
         ckpt = tf.train.get_checkpoint_state(args.save_dir)
         if ckpt and ckpt.model_checkpoint_path:

@@ -61,6 +61,12 @@ def train(args):
     loss = 0.0
     t_start = time.time()
     with tf.Session() as sess:
+        # instrument for tensorboard
+        summaries = tf.summary.merge_all()
+        writer = tf.summary.FileWriter(
+                os.path.join(args.log_dir, time.strftime("%Y-%m-%d-%H-%M-%S")))
+        writer.add_graph(sess.graph)
+
         # init variables
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver(tf.global_variables())
@@ -80,6 +86,9 @@ def train(args):
                     feed[c] = state[i].c
                     feed[h] = state[i].h
                 train_loss, state, _ = sess.run([model.cost, model.final_state, model.train_op], feed)
+                # instrument for tensorboard
+                summ, train_loss, state, _ = sess.run([summaries, model.cost, model.final_state, model.train_op], feed)
+                writer.add_summary(summ, e * data_loader.num_batches + b)
                 end = time.time()
                 print("{}/{} (epoch {}), train_loss = {:.3f}, time/batch = {:.3f}"
                       .format(e * data_loader.num_batches + b,
@@ -113,6 +122,8 @@ if __name__ == '__main__':
                         help='the corpus (json) files directory to learn from')
     parser.add_argument('--save_dir', type=str, default='save',
                         help='directory to store checkpointed models')
+    parser.add_argument('--log_dir', type=str, default='logs',
+                        help='directory to store tensorboard logs')
     parser.add_argument('--rnn_size', type=int, default=128,
                         help='size of RNN hidden state')
     parser.add_argument('--num_layers', type=int, default=2,
@@ -135,6 +146,10 @@ if __name__ == '__main__':
                         help='decay rate for rmsprop')
     parser.add_argument('--loss_break', type=float, default=0.0,
                         help='break down when train loss is less than this value')
+    parser.add_argument('--output_keep_prob', type=float, default=1.0,
+                        help='probability of keeping weights in the hidden layer')
+    parser.add_argument('--input_keep_prob', type=float, default=1.0,
+                        help='probability of keeping weights in the input layer')
     parser.add_argument('--init_from', type=str, default=None,
                         help="""continue training from saved model at this path. Path must contain files saved by previous training process:
                             'config.pkl'        : configuration;
