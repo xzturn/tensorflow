@@ -238,10 +238,14 @@ class BatchNormalization(base._Layer):  # pylint: disable=protected-access
       # For example, after a single update, the moving average would be
       # (1-decay) * value. and the weight will be 1-decay, with their ratio
       # giving value.
+      # Make sure the weight is not updated until before r and d computation.
+      value = array_ops.identity(value)
+      with ops.control_dependencies([value]):
+        weight_value = array_ops.constant(1., dtype=weight.dtype)
       new_var = moving_averages.assign_moving_average(
           var, value, decay, zero_debias=False)
       new_weight = moving_averages.assign_moving_average(
-          weight, 1., decay, zero_debias=False)
+          weight, weight_value, decay, zero_debias=False)
       return new_var / new_weight
 
     with ops.colocate_with(self.moving_mean):
@@ -359,6 +363,23 @@ def batch_normalization(inputs,
   Internal Covariate Shift"
 
   Sergey Ioffe, Christian Szegedy
+
+  Note: the operations which update the `moving_mean` and `moving_variance`
+  variables will not be added as dependencies of your training operation and so
+  must be run separately. For example:
+  ```
+  extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+  sess.run([train_op, extra_update_ops], ...)
+  ```
+  Alternatively, add the operations as a dependency to your training operation
+  manually, and then just run your training operation as normal:
+  ```
+  extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+  with tf.control_dependencies(extra_update_ops):
+    train_op = optimizer.minimize(loss)
+  ...
+  sess.run([train_op], ...)
+  ```
 
   Arguments:
     inputs: Tensor input.
