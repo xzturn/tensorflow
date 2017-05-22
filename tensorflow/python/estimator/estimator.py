@@ -200,7 +200,7 @@ class Estimator(object):
         error. 'steps' works incrementally. If you call two times
         train(steps=10) then training occurs in total 20 steps. If `OutOfRange`
         or `StopIteration` error occurs in the middle, training stops before 20
-        steps. If you don't want to have incremental behaviour please set
+        steps. If you don't want to have incremental behavior please set
         `max_steps` instead. If set, `max_steps` must be `None`.
       max_steps: Number of total steps for which to train model. If `None`,
         train forever or train until input_fn generates the `OutOfRange` or
@@ -817,11 +817,11 @@ def _write_dict_to_summary(output_dir,
   for key in dictionary:
     if dictionary[key] is None:
       continue
-    if key  == "global_step":
+    if key == 'global_step':
       continue
     value = summary_proto.value.add()
     value.tag = key
-    if (isinstance(dictionary[key], np.float32) or 
+    if (isinstance(dictionary[key], np.float32) or
         isinstance(dictionary[key], float)):
       value.simple_value = float(dictionary[key])
     elif (isinstance(dictionary[key], np.int64) or
@@ -829,7 +829,8 @@ def _write_dict_to_summary(output_dir,
           isinstance(dictionary[key], int)):
       value.simple_value = int(dictionary[key])
     else:
-      logging.warn('Skipping summary for %s, must be a float, np.float32, np.int64, np.int32 or int.',
-                   key)
+      logging.warn(
+          'Skipping summary for %s, must be a float, np.float32, np.int64, np.int32 or int.',
+          key)
   summary_writer.add_summary(summary_proto, current_global_step)
   summary_writer.flush()
