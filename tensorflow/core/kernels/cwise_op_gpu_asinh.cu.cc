@@ -13,16 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/core/kernels/cwise_ops_common.h"
+#if GOOGLE_CUDA
+
+#include "tensorflow/core/kernels/cwise_ops_gpu_common.cu.h"
+#include "tensorflow/core/kernels/cwise_ops_gpu_gradients.cu.h"
 
 namespace tensorflow {
-REGISTER3(UnaryOp, CPU, "Ceil", functor::ceil, float, Eigen::half, double);
-
-#if GOOGLE_CUDA
-REGISTER3(UnaryOp, GPU, "Ceil", functor::ceil, float, Eigen::half, double);
-#endif
-
-#if TENSORFLOW_USE_SYCL
-REGISTER2(UnaryOp, SYCL, "Ceil", functor::ceil, float, double);
-#endif // TENSORFLOW_USE_SYCL
+namespace functor {
+DEFINE_UNARY2(asinh, float, double);
+}  // namespace functor
 }  // namespace tensorflow
+
+#endif  // GOOGLE_CUDA

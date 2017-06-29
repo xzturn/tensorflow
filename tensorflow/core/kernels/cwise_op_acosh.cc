@@ -14,27 +14,25 @@ limitations under the License.
 ==============================================================================*/
 
 #include "tensorflow/core/kernels/cwise_ops_common.h"
+#include "tensorflow/core/kernels/cwise_ops_gradients.h"
 
 namespace tensorflow {
-REGISTER5(UnaryOp, CPU, "Sqrt", functor::sqrt, float, Eigen::half, double,
+REGISTER4(UnaryOp, CPU, "Acosh", functor::acosh, float, double,
           complex64, complex128);
 
+#if TENSORFLOW_USE_SYCL
+#define REGISTER_SYCL_KERNEL(TYPE)                                    \
+  REGISTER_KERNEL_BUILDER(                                            \
+                          Name("Acosh")                               \
+                          .Device(DEVICE_SYCL)                        \
+                          .TypeConstraint<TYPE>("T"),                 \
+                          UnaryOp<SYCLDevice, functor::acosh<TYPE>>);
+REGISTER_SYCL_KERNEL(float);
+REGISTER_SYCL_KERNEL(double);
+#undef REGISTER_SYCL_KERNEL
+#endif // TENSORFLOW_USE_SYC
+
 #if GOOGLE_CUDA
-REGISTER3(UnaryOp, GPU, "Sqrt", functor::sqrt, float, Eigen::half, double);
+REGISTER2(UnaryOp, GPU, "Acosh", functor::acosh, float, double);
 #endif
-
-#ifdef TENSORFLOW_USE_SYCL
-REGISTER2(UnaryOp, SYCL, "Sqrt", functor::sqrt, float, double);
-#endif // TENSORFLOW_USE_SYCL
-
-REGISTER5(SimpleBinaryOp, CPU, "SqrtGrad", functor::sqrt_grad, float,
-          Eigen::half, double, complex64, complex128);
-#if GOOGLE_CUDA
-REGISTER3(SimpleBinaryOp, GPU, "SqrtGrad", functor::sqrt_grad, float,
-          Eigen::half, double);
-#endif
-
-#ifdef TENSORFLOW_USE_SYCL
-REGISTER2(SimpleBinaryOp, SYCL, "SqrtGrad", functor::sqrt_grad, float, double);
-#endif // TENSORFLOW_USE_SYCL
 }  // namespace tensorflow
