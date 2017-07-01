@@ -32,6 +32,7 @@ load(
     "tf_kernel_library",
     "tf_mkl_kernel_library",
     "cc_header_only_library",
+    "if_not_windows",
 )
 load("@local_config_sycl//sycl:build_defs.bzl", "if_sycl")
 load("//tensorflow:tensorflow.bzl", "tf_cuda_cc_test")
@@ -231,7 +232,7 @@ cc_library(
     name = "ops_util",
     srcs = ["ops_util.cc"],
     hdrs = ["ops_util.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = if_not_windows(["-Wno-sign-compare"]),
     deps = [
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
@@ -344,7 +345,7 @@ cc_library(
     name = "save_restore_tensor",
     srcs = ["save_restore_tensor.cc"],
     hdrs = ["save_restore_tensor.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = if_not_windows(["-Wno-sign-compare"]),
     deps = [
         ":bounds_check",
         "//tensorflow/core:framework",
@@ -763,7 +764,10 @@ tf_kernel_library(
 tf_kernel_library(
     name = "where_op",
     prefix = "where_op",
-    deps = ARRAY_DEPS,
+    deps = if_cuda([
+        ":cuda_solvers",
+        "@cub_archive//:cub",
+    ]) + ARRAY_DEPS,
 )
 
 tf_cc_test(
@@ -3344,7 +3348,7 @@ tf_kernel_library(
 tf_kernel_library(
     name = "serialize_sparse_op",
     prefix = "serialize_sparse_op",
-    deps = SPARSE_DEPS,
+    deps = SPARSE_DEPS + ["//tensorflow/core:protos_all_cc"],
 )
 
 tf_kernel_library(
@@ -5440,6 +5444,18 @@ tf_kernel_library(
 )
 
 tf_kernel_library(
+    name = "ignore_errors_dataset_op",
+    srcs = ["ignore_errors_dataset_op.cc"],
+    deps = [
+        ":dataset",
+        "//tensorflow/core:dataset_ops_op_lib",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
+        "//tensorflow/core:lib_internal",
+    ],
+)
+
+tf_kernel_library(
     name = "range_dataset_op",
     srcs = ["range_dataset_op.cc"],
     deps = [
@@ -5559,6 +5575,7 @@ tf_kernel_library(
         ":filter_dataset_op",
         ":flat_map_dataset_op",
         ":group_by_window_dataset_op",
+        ":ignore_errors_dataset_op",
         ":iterator_ops",
         ":map_dataset_op",
         ":padded_batch_dataset_op",

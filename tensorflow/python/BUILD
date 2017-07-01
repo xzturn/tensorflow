@@ -233,6 +233,7 @@ cc_library(
         ":numpy_lib",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
+        "//tensorflow/core:protos_all_cc",
         "//tensorflow/core:script_ops_op_lib",
         "//third_party/py/numpy:headers",
         "//util/python:python_headers",
@@ -266,7 +267,7 @@ cc_library(
 cc_binary(
     name = "framework/test_file_system.so",
     srcs = ["framework/test_file_system.cc"],
-    copts = ["-Wno-sign-compare"],
+    copts = if_not_windows(["-Wno-sign-compare"]),
     linkopts = select({
         "//conditions:default": [
             "-lm",
@@ -2688,7 +2689,7 @@ cc_library(
     name = "cpp_shape_inference",
     srcs = ["framework/cpp_shape_inference.cc"],
     hdrs = ["framework/cpp_shape_inference.h"],
-    copts = ["-Wno-sign-compare"],
+    copts = if_not_windows(["-Wno-sign-compare"]),
     visibility = ["//visibility:public"],
     deps = [
         ":cpp_shape_inference_proto_cc",
