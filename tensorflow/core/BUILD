@@ -289,7 +289,6 @@ cc_library(
         "platform/env_time.h",
         "platform/file_system.h",
         "platform/fingerprint.h",
-        "platform/grpc_response_reader.h",
         "platform/init_main.h",
         "platform/logging.h",
         "platform/macros.h",
@@ -2973,7 +2972,6 @@ cc_test(
     srcs = ["example/example_parser_configuration_test.cc"],
     data = [":example_parser_configuration_testdata"],
     deps = [
-        ":core",
         ":core_cpu",
         ":core_cpu_internal",
         ":direct_session_internal",
