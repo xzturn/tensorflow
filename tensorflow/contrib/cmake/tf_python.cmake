@@ -315,6 +315,7 @@ add_python_module("tensorflow/contrib/framework/ops")
 add_python_module("tensorflow/contrib/framework/python")
 add_python_module("tensorflow/contrib/framework/python/framework")
 add_python_module("tensorflow/contrib/framework/python/ops")
+add_python_module("tensorflow/contrib/gan")
 add_python_module("tensorflow/contrib/graph_editor")
 add_python_module("tensorflow/contrib/graph_editor/examples")
 add_python_module("tensorflow/contrib/graph_editor/tests")
@@ -819,6 +820,7 @@ if(WIN32)
         $<TARGET_OBJECTS:tf_core_profiler>
         $<TARGET_OBJECTS:tf_cc>
         $<TARGET_OBJECTS:tf_cc_ops>
+        $<TARGET_OBJECTS:tf_cc_while_loop>
         $<TARGET_OBJECTS:tf_core_ops>
         $<TARGET_OBJECTS:tf_core_direct_session>
         $<TARGET_OBJECTS:tf_grappler>
@@ -868,6 +870,7 @@ add_library(pywrap_tensorflow_internal SHARED
     $<TARGET_OBJECTS:tf_core_profiler>
     $<TARGET_OBJECTS:tf_cc>
     $<TARGET_OBJECTS:tf_cc_ops>
+    $<TARGET_OBJECTS:tf_cc_while_loop>
     $<TARGET_OBJECTS:tf_core_ops>
     $<TARGET_OBJECTS:tf_core_direct_session>
     $<TARGET_OBJECTS:tf_grappler>

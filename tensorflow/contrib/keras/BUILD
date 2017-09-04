@@ -263,7 +263,7 @@ py_test(
 
 py_test(
     name = "mobilenet_test",
-    size = "small",
+    size = "medium",
     srcs = ["python/keras/applications/mobilenet_test.py"],
     srcs_version = "PY2AND3",
     deps = [
@@ -551,6 +551,7 @@ py_test(
     size = "small",
     srcs = ["python/keras/utils/io_utils_test.py"],
     srcs_version = "PY2AND3",
+    tags = ["notsan"],
     deps = [
         ":keras",
         "//tensorflow/python:client_testlib",
@@ -608,7 +609,7 @@ py_test(
 
 py_test(
     name = "callbacks_test",
-    size = "small",
+    size = "medium",
     srcs = ["python/keras/callbacks_test.py"],
     srcs_version = "PY2AND3",
     tags = ["notsan"],
