@@ -76,7 +76,6 @@ cc_library(
 
 cc_test(
     name = "stream_assignment_test",
-    size = "small",
     srcs = [
         "stream_assignment_test.cc",
     ],
@@ -305,7 +304,6 @@ cc_library(
 
 cc_test(
     name = "convolution_folding_test",
-    size = "small",
     srcs = ["convolution_folding_test.cc"],
     deps = [
         ":convolution_folding",
@@ -332,10 +330,10 @@ cc_library(
 
 cc_test(
     name = "instruction_fusion_test",
-    size = "small",
     srcs = ["instruction_fusion_test.cc"],
     deps = [
         ":instruction_fusion",
+        "//tensorflow/compiler/xla/service:hlo_matchers",
         "//tensorflow/compiler/xla/tests:hlo_test_base",
         "//tensorflow/compiler/xla/tests:xla_internal_test_main",
     ],
@@ -372,7 +370,6 @@ cc_library(
 
 cc_test(
     name = "fusion_merger_test",
-    size = "small",
     srcs = ["fusion_merger_test.cc"],
     deps = [
         ":fusion_merger",
@@ -481,7 +478,6 @@ cc_library(
 
 cc_test(
     name = "layout_assignment_test",
-    size = "small",
     srcs = ["layout_assignment_test.cc"],
     deps = [
         ":layout_assignment",
@@ -513,7 +509,6 @@ cc_library(
 
 cc_test(
     name = "hlo_schedule_test",
-    size = "small",
     srcs = [
         "hlo_schedule_test.cc",
     ],
@@ -545,7 +540,6 @@ cc_library(
 
 cc_test(
     name = "while_transformer_test",
-    size = "small",
     srcs = ["while_transformer_test.cc"],
     deps = [
         ":instruction_fusion",

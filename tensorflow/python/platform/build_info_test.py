@@ -1,4 +1,4 @@
-# Copyright 2017 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for pip package dependencies tensorflow versions."""
+"""Test for the generated build_info script."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import autograd
-
+from tensorflow.python.platform import build_info
 from tensorflow.python.platform import test
 
 
-class PipDependenciesTest(test.TestCase):
+class BuildInfoTest(test.TestCase):
 
-  def testAutograd(self):
-    self.assertTrue(autograd.grad is not None)
+  def testBuildInfo(self):
+    self.assertEqual(build_info.is_cuda_build, test.is_built_with_cuda())
+
+
+if __name__ == '__main__':
+  test.main()
