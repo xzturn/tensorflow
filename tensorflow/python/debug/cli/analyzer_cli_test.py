@@ -47,7 +47,8 @@ from tensorflow.python.util import tf_inspect
 
 def no_rewrite_session_config():
   rewriter_config = rewriter_config_pb2.RewriterConfig(
-      disable_model_pruning=True)
+      disable_model_pruning=True,
+      constant_folding=rewriter_config_pb2.RewriterConfig.OFF)
   graph_options = config_pb2.GraphOptions(rewrite_options=rewriter_config)
   return config_pb2.ConfigProto(graph_options=graph_options)
 
@@ -573,7 +574,7 @@ class AnalyzerCLISimpleMulAddTest(test_util.TensorFlowTestCase):
       gpu_name = test_util.gpu_device_name()
       cls._main_device = "/job:localhost/replica:0/task:0" + gpu_name
     else:
-      cls._main_device = "/job:localhost/replica:0/task:0/cpu:0"
+      cls._main_device = "/job:localhost/replica:0/task:0/device:CPU:0"
 
     cls._curr_file_path = os.path.abspath(
         tf_inspect.getfile(tf_inspect.currentframe()))
@@ -1594,7 +1595,7 @@ class AnalyzerCLIControlDepTest(test_util.TensorFlowTestCase):
       gpu_name = test_util.gpu_device_name()
       cls._main_device = "/job:localhost/replica:0/task:0" + gpu_name
     else:
-      cls._main_device = "/job:localhost/replica:0/task:0/cpu:0"
+      cls._main_device = "/job:localhost/replica:0/task:0/device:CPU:0"
 
     with session.Session(config=no_rewrite_session_config()) as sess:
       x_init_val = np.array([5.0, 3.0])

@@ -15,6 +15,8 @@ package_group(
 )
 
 load(":build_defs.bzl", "runtime_copts")
+load("//tensorflow:tensorflow.bzl", "tf_cc_test")
+load("//tensorflow:tensorflow.bzl", "tf_cc_binary")
 
 # Filegroup used to collect source files for dependency checking.
 filegroup(
@@ -23,6 +25,27 @@ filegroup(
         "**/*.cc",
         "**/*.h",
     ]),
+)
+
+cc_library(
+    name = "cpu_transfer_manager",
+    srcs = ["cpu_transfer_manager.cc"],
+    hdrs = ["cpu_transfer_manager.h"],
+    deps = [
+        "//tensorflow/compiler/xla:literal_util",
+        "//tensorflow/compiler/xla:shape_util",
+        "//tensorflow/compiler/xla:status_macros",
+        "//tensorflow/compiler/xla:statusor",
+        "//tensorflow/compiler/xla:types",
+        "//tensorflow/compiler/xla:util",
+        "//tensorflow/compiler/xla:xla_data_proto",
+        "//tensorflow/compiler/xla/service:generic_transfer_manager",
+        "//tensorflow/compiler/xla/service:transfer_manager",
+        "//tensorflow/compiler/xla/service/cpu:cpu_runtime",
+        "//tensorflow/core:lib",
+        "//tensorflow/core:stream_executor_no_cuda",
+    ],
+    alwayslink = True,  # Contains per-platform transfer manager registration
 )
 
 cc_library(
@@ -74,6 +97,7 @@ cc_library(
         "//tensorflow/compiler/xla/service:reduce_precision_insertion",
         "//tensorflow/compiler/xla/service:reshape_mover",
         "//tensorflow/compiler/xla/service:transpose_folding",
+        "//tensorflow/compiler/xla/service:tuple_simplifier",
         "//tensorflow/compiler/xla/service/llvm_ir:llvm_util",  # fixdeps: keep
         "//tensorflow/core:lib",  # fixdeps: keep
         "//tensorflow/core:stream_executor_no_cuda",
@@ -243,7 +267,7 @@ cc_library(
     ],
 )
 
-cc_binary(
+tf_cc_binary(
     name = "sample_harness",
     srcs = ["sample_harness.cc"],
     deps = [
@@ -455,7 +479,7 @@ cc_library(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "cpu_runtime_test",
     srcs = ["cpu_runtime_test.cc"],
     deps = [
@@ -474,7 +498,7 @@ cc_test(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "cpu_instruction_fusion_test",
     srcs = ["cpu_instruction_fusion_test.cc"],
     deps = [
@@ -487,7 +511,7 @@ cc_test(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "xfeed_manager_test",
     size = "small",
     srcs = ["xfeed_manager_test.cc"],
@@ -519,6 +543,7 @@ cc_library(
     ],
     deps = [
         ":ir_emission_utils",
+        ":parallel_task_assignment",
         ":shape_partition",
         "//tensorflow/compiler/xla:types",
         "//tensorflow/compiler/xla:util",
@@ -554,7 +579,7 @@ cc_library(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "layout_assignment_test",
     size = "small",
     srcs = ["layout_assignment_test.cc"],
@@ -593,7 +618,7 @@ cc_library(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "conv_canonicalization_test",
     srcs = ["conv_canonicalization_test.cc"],
     deps = [
@@ -616,7 +641,7 @@ cc_library(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "shape_partition_test",
     srcs = ["shape_partition_test.cc"],
     deps = [
@@ -625,6 +650,18 @@ cc_test(
         "//tensorflow/compiler/xla:util",
         "//tensorflow/compiler/xla/tests:hlo_test_base",
         "//tensorflow/compiler/xla/tests:xla_internal_test_main",
+    ],
+)
+
+cc_library(
+    name = "parallel_task_assignment",
+    srcs = ["parallel_task_assignment.cc"],
+    hdrs = ["parallel_task_assignment.h"],
+    deps = [
+        ":ir_emission_utils",
+        ":shape_partition",
+        "//tensorflow/compiler/xla/service:hlo",
+        "//tensorflow/compiler/xla/service:hlo_cost_analysis",
     ],
 )
 

@@ -2,10 +2,14 @@ licenses(["notice"])  # Apache 2.0
 
 load("//tensorflow:tensorflow.bzl", "py_test")
 load("//tensorflow:tensorflow.bzl", "cuda_py_test")
+load("//tensorflow:tensorflow.bzl", "tf_cc_binary")
 
 cc_library(
     name = "pywrap_tfe_lib",
-    srcs = ["pywrap_tfe_src.cc"],
+    srcs = [
+        "pywrap_tensor.cc",
+        "pywrap_tfe_src.cc",
+    ],
     hdrs = ["pywrap_tfe.h"],
     visibility = ["//tensorflow:internal"],
     deps = [
@@ -13,8 +17,10 @@ cc_library(
         "//tensorflow/c/eager:c_api",
         "//tensorflow/core:lib",
         "//tensorflow/python:ndarray_tensor",
+        "//tensorflow/python:ndarray_tensor_bridge",
         "//tensorflow/python:numpy_lib",
         "//tensorflow/python:py_seq_tensor",
+        "//tensorflow/python:safe_ptr",
         "//util/python:python_headers",
     ],
 )
@@ -213,7 +219,7 @@ cc_library(
     ],
 )
 
-cc_binary(
+tf_cc_binary(
     name = "python_eager_op_gen_demo",
     deps = [
         ":python_eager_op_gen_main",
@@ -302,7 +308,6 @@ py_library(
         "//tensorflow/python:dtypes",
         "//tensorflow/python:errors",
         "//tensorflow/python:framework_ops",
-        "//tensorflow/python:graph_to_function_def",
         "//tensorflow/python:resource_variable_ops",
         "//tensorflow/python:util",
         "//tensorflow/python:variable_scope",
@@ -333,7 +338,9 @@ py_library(
     srcs_version = "PY2AND3",
     visibility = ["//tensorflow:internal"],
     deps = [
+        ":imperative_grad",
         "//tensorflow/python:array_ops",
+        "//tensorflow/python:constant_op",
         "//tensorflow/python:dtypes",
         "//tensorflow/python:errors",
         "//tensorflow/python:framework_ops",
@@ -397,6 +404,7 @@ py_test(
         "//tensorflow/python:errors",
         "//tensorflow/python:framework_ops",
         "//tensorflow/python:framework_test_lib",
+        "//tensorflow/python:layers",
         "//tensorflow/python:math_ops",
         "//tensorflow/python:random_ops",
         "//tensorflow/python:sparse_ops",
@@ -417,4 +425,11 @@ filegroup(
         ],
     ),
     visibility = ["//tensorflow:__subpackages__"],
+)
+
+py_library(
+    name = "imperative_grad",
+    srcs = ["imperative_grad.py"],
+    srcs_version = "PY2AND3",
+    deps = [":tape"],
 )

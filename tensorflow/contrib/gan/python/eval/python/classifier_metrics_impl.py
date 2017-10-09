@@ -59,7 +59,7 @@ __all__ = [
 
 INCEPTION_URL = 'http://download.tensorflow.org/models/frozen_inception_v3_2017_09_13.tar.gz'
 INCEPTION_FROZEN_GRAPH = 'frozen_inception_v3.pb'
-INCEPTION_V3_INPUT = 'inputs'
+INCEPTION_V3_INPUT = 'input'
 INCEPTION_V3_OUTPUT = 'InceptionV3/Logits/SpatialSqueeze:0'
 INCEPTION_V3_FINAL_POOL = 'InceptionV3/Logits/AvgPool_1a_8x8/AvgPool:0'
 _INCEPTION_V3_NUM_CLASSES = 1001
@@ -75,12 +75,13 @@ def _validate_images(images, image_size):
   return images
 
 
-def _matrix_square_root(mat, eps=1e-10):
-  """Compute symmetric square root of matrix.
+def _symmetric_matrix_square_root(mat, eps=1e-10):
+  """Compute square root of a symmetric matrix.
 
-  Equivalent to matrix square root when matrix is invertible; note that this is
-  different from an elementwise square root. We want to compute M' where M' =
-  sqrt(mat) such that M' * M' = mat.
+  Note that this is different from an elementwise square root. We want to
+  compute M' where M' = sqrt(mat) such that M' * M' = mat.
+
+  Also note that this method **only** works for symmetric matrices.
 
   Args:
     mat: Matrix to take the square root of.
@@ -90,9 +91,13 @@ def _matrix_square_root(mat, eps=1e-10):
   Returns:
     Matrix square root of mat.
   """
+  # Unlike numpy, tensorflow's return order is (s, u, v)
   s, u, v = linalg_ops.svd(mat)
   # sqrt is unstable around 0, just use 0 in such case
   si = array_ops.where(math_ops.less(s, eps), s, math_ops.sqrt(s))
+  # Note that the v returned by Tensorflow is v = V
+  # (when referencing the equation A = U S V^T)
+  # This is unlike Numpy which returns v = V^T
   return math_ops.matmul(
       math_ops.matmul(u, array_ops.diag(si)), v, transpose_b=True)
 
@@ -327,11 +332,53 @@ inception_score = functools.partial(
         run_inception, output_tensor=INCEPTION_V3_OUTPUT))
 
 
+def trace_sqrt_product(sigma, sigma_v):
+  """Find the trace of the positive sqrt of product of covariance matrices.
+
+  '_symmetric_matrix_square_root' only works for symmetric matrices, so we
+  cannot just take _symmetric_matrix_square_root(sigma * sigma_v).
+  ('sigma' and 'sigma_v' are symmetric, but their product is not necessarily).
+
+  Let sigma = A A so A = sqrt(sigma), and sigma_v = B B.
+  We want to find trace(sqrt(sigma sigma_v)) = trace(sqrt(A A B B))
+  Note the following properties:
+  (i) forall M1, M2: eigenvalues(M1 M2) = eigenvalues(M2 M1)
+     => eigenvalues(A A B B) = eigenvalues (A B B A)
+  (ii) if M1 = sqrt(M2), then eigenvalues(M1) = sqrt(eigenvalues(M2))
+     => eigenvalues(sqrt(sigma sigma_v)) = sqrt(eigenvalues(A B B A))
+  (iii) forall M: trace(M) = sum(eigenvalues(M))
+     => trace(sqrt(sigma sigma_v)) = sum(eigenvalues(sqrt(sigma sigma_v)))
+                                   = sum(sqrt(eigenvalues(A B B A)))
+                                   = sum(eigenvalues(sqrt(A B B A)))
+                                   = trace(sqrt(A B B A))
+                                   = trace(sqrt(A sigma_v A))
+  A = sqrt(sigma). Both sigma and A sigma_v A are symmetric, so we **can**
+  use the _symmetric_matrix_square_root function to find the roots of these
+  matrices.
+
+  Args:
+    sigma: a square, symmetric, real, positive semi-definite covariance matrix
+    sigma_v: same as sigma
+
+  Returns:
+    The trace of the positive square root of sigma*sigma_v
+  """
+
+  # Note sqrt_sigma is called "A" in the proof above
+  sqrt_sigma = _symmetric_matrix_square_root(sigma)
+
+  # This is sqrt(A sigma_v A) above
+  sqrt_a_sigmav_a = math_ops.matmul(
+      sqrt_sigma, math_ops.matmul(sigma_v, sqrt_sigma))
+
+  return math_ops.trace(_symmetric_matrix_square_root(sqrt_a_sigmav_a))
+
+
 def frechet_classifier_distance(real_images,
                                 generated_images,
                                 classifier_fn,
                                 num_batches=1):
-  """Classifier distance for evaluating a conditional generative model.
+  """Classifier distance for evaluating a generative model.
 
   This is based on the Frechet Inception distance, but for an arbitrary
   classifier.
@@ -346,6 +393,13 @@ def frechet_classifier_distance(real_images,
   images (or more accurately, their visual features) are. Note that unlike the
   Inception score, this is a true distance and utilizes information about real
   world images.
+
+  Note that when computed using sample means and sample covariance matrices,
+  Frechet distance is biased. It is more biased for small sample sizes. (e.g.
+  even if the two distributions are the same, for a small sample size, the
+  expected Frechet distance is large). It is important to use the same
+  sample size to compute frechet classifier distance when comparing two
+  generative models.
 
   Args:
     real_images: Real images to use to compute Frechet Inception distance.
@@ -388,15 +442,25 @@ def frechet_classifier_distance(real_images,
   # Compute mean and covariance matrices of activations.
   m = math_ops.reduce_mean(real_a, 0)
   m_v = math_ops.reduce_mean(gen_a, 0)
-  dim = math_ops.to_float(array_ops.shape(m)[0])
-  sigma = math_ops.matmul(real_a - m, real_a - m, transpose_b=True) / dim
-  sigma_v = math_ops.matmul(gen_a - m, gen_a - m, transpose_b=True) / dim
+  num_examples = math_ops.to_float(array_ops.shape(real_a)[0])
 
-  # Take matrix square root of the product of covariance matrices.
-  sqcc = _matrix_square_root(math_ops.matmul(sigma, sigma_v))
+  # sigma = (1 / (n - 1)) * (X - mu) (X - mu)^T
+  sigma = math_ops.matmul(
+      real_a - m, real_a - m, transpose_a=True) / (num_examples - 1)
+
+  sigma_v = math_ops.matmul(
+      gen_a - m_v, gen_a - m_v, transpose_a=True) / (num_examples - 1)
+
+  # Find the Tr(sqrt(sigma sigma_v)) component of FID
+  sqrt_trace_component = trace_sqrt_product(sigma, sigma_v)
 
   # Compute the two components of FID.
-  trace = math_ops.trace(sigma + sigma_v - 2.0 * sqcc)
+
+  # First the covariance component.
+  # Here, note that trace(A + B) = trace(A) + trace(B)
+  trace = math_ops.trace(sigma + sigma_v) - 2.0 * sqrt_trace_component
+
+  # Next the distance between means.
   mean = math_ops.square(linalg_ops.norm(m - m_v))  # This uses the L2 norm.
   fid = trace + mean
 

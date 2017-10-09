@@ -22,6 +22,7 @@ package(
 
 load("//tensorflow:tensorflow.bzl", "cc_header_only_library")
 load("//tensorflow:tensorflow.bzl", "tf_kernel_library")
+load("//tensorflow:tensorflow.bzl", "tf_cc_test")
 load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda")
 load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda_is_configured")
 
@@ -32,6 +33,7 @@ cc_library(
     deps = [
         ":xla_cpu_device",
         ":xla_cpu_jit",
+        "//tensorflow/compiler/plugin",
     ] + if_cuda_is_configured([
         ":xla_gpu_device",
         ":xla_gpu_jit",
@@ -44,7 +46,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":jit_compilation_passes",
-        "//tensorflow/compiler/jit/kernels:xla_local_launch_op",
+        "//tensorflow/compiler/jit/kernels:xla_launch_op",
         "//tensorflow/compiler/tf2xla/kernels:xla_ops",
         "//tensorflow/compiler/xla/service:cpu_plugin",
     ],
@@ -56,7 +58,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = if_cuda([
         ":jit_compilation_passes",
-        "//tensorflow/compiler/jit/kernels:xla_local_launch_op",
+        "//tensorflow/compiler/jit/kernels:xla_launch_op",
         "//tensorflow/compiler/tf2xla/kernels:xla_ops",
         "//tensorflow/compiler/xla/service:gpu_plugin",
     ]),
@@ -70,7 +72,7 @@ cc_library(
     deps = [
         ":jit_compilation_passes",
         ":xla_device",
-        "//tensorflow/compiler/jit/kernels:xla_local_launch_op",
+        "//tensorflow/compiler/jit/kernels:xla_launch_op",
         "//tensorflow/compiler/tf2xla:xla_compiler",
         "//tensorflow/compiler/tf2xla/kernels:xla_ops",
         "//tensorflow/compiler/xla/service:cpu_plugin",  # buildcleaner: keep
@@ -87,7 +89,7 @@ cc_library(
     deps = [
         ":jit_compilation_passes",
         ":xla_device",
-        "//tensorflow/compiler/jit/kernels:xla_local_launch_op",
+        "//tensorflow/compiler/jit/kernels:xla_launch_op",
         "//tensorflow/compiler/tf2xla:xla_compiler",
         "//tensorflow/compiler/tf2xla/kernels:xla_ops",
         "//tensorflow/compiler/xla/service:gpu_plugin",  # buildcleaner: keep
@@ -102,7 +104,7 @@ cc_library(
     srcs = ["xla_interpreter_device.cc"],
     deps = [
         ":xla_device",
-        "//tensorflow/compiler/jit/kernels:xla_local_launch_op",
+        "//tensorflow/compiler/jit/kernels:xla_launch_op",
         "//tensorflow/compiler/tf2xla:xla_compiler",
     ],
     alwayslink = True,
@@ -152,7 +154,7 @@ cc_library(
         "//tensorflow/core:lib_internal",
         "//tensorflow/core:protos_all_cc",
         "//tensorflow/core:stream_executor_no_cuda",
-        "//tensorflow/core:tensorflow_opensource",
+        "//tensorflow/core/kernels:cast_op",
         "//tensorflow/core/kernels:constant_op",
         "//tensorflow/core/kernels:control_flow_ops",
         "//tensorflow/core/kernels:identity_op",
@@ -212,7 +214,7 @@ cc_library(
     deps = [
         ":common",
         ":compilation_passes",
-        "//tensorflow/compiler/jit/kernels:xla_local_launch_op",
+        "//tensorflow/compiler/jit/kernels:xla_launch_op",
         "//tensorflow/compiler/tf2xla:const_analysis",
         "//tensorflow/compiler/tf2xla:xla_compiler",
         "//tensorflow/core:core_cpu_internal",
@@ -260,7 +262,7 @@ cc_library(
     hdrs = ["union_find.h"],
 )
 
-cc_test(
+tf_cc_test(
     name = "graph_to_functiondef_test",
     size = "small",
     srcs = [
@@ -282,7 +284,7 @@ cc_test(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "compilation_passes_test",
     size = "small",
     srcs = [
@@ -296,7 +298,7 @@ cc_test(
         "//tensorflow/cc:cc_ops_internal",
         "//tensorflow/cc:function_ops",
         "//tensorflow/cc:ops",
-        "//tensorflow/compiler/jit/kernels:xla_local_launch_op",
+        "//tensorflow/compiler/jit/kernels:xla_launch_op",
         "//tensorflow/compiler/tf2xla:xla_compiler",
         "//tensorflow/compiler/tf2xla/kernels:xla_ops",
         "//tensorflow/core:core_cpu",

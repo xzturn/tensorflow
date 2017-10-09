@@ -107,18 +107,21 @@ XlaDeviceAllocator* XlaDeviceAllocatorState::GetOrCreateXlaDeviceAllocator(
 /* static */ Status XlaDevice::Create(
     const string& platform_name, const string& device_name, int device_ordinal,
     const string& jit_device_name, const SessionOptions& options,
-    const string& name_prefix, std::unique_ptr<XlaDevice>* device) {
+    const string& name_prefix, bool register_device_for_compilation,
+    std::unique_ptr<XlaDevice>* device) {
   VLOG(1) << "XlaDevice::Create " << platform_name << " " << device_name << ":"
           << device_ordinal;
 
-  // These are no-ops if they have already been done previously for
-  // this device_name/compilation_device_name pair.
-  XlaOpRegistry::DeviceRegistration registration;
-  registration.compilation_device_name = jit_device_name;
-  registration.requires_compilation = true;
-  registration.enable_jit_by_default = false;
-  registration.compile_resource_ops = true;
-  XlaOpRegistry::RegisterCompilationDevice(device_name, registration);
+  if (register_device_for_compilation) {
+    // These are no-ops if they have already been done previously for
+    // this device_name/compilation_device_name pair.
+    XlaOpRegistry::DeviceRegistration registration;
+    registration.compilation_device_name = jit_device_name;
+    registration.requires_compilation = true;
+    registration.enable_jit_by_default = false;
+    registration.compile_resource_ops = true;
+    XlaOpRegistry::RegisterCompilationDevice(device_name, registration);
+  }
 
   auto platform = se::MultiPlatformManager::PlatformWithName(platform_name);
   if (!platform.ok()) {
@@ -161,8 +164,10 @@ const DeviceType& XlaDevice::Metadata::jit_device_type() const {
   XlaDevice* xla_device = dynamic_cast<XlaDevice*>(ctx->device());
   if (xla_device == nullptr) {
     return errors::Internal(
-        "GetMetadata should be called on an XLA device. This usually means an "
-        "internal bug or Op is placed on the wrong device.");
+        "Cannot get XLA metadata from non-XLA device \"", ctx->device()->name(),
+        "\". GetMetadata must only be called on an XLA device. Either an "
+        "internal bug has been triggered, or an XLA-specific op has been "
+        "placed on the wrong device.");
   }
   *metadata = &(xla_device->xla_metadata_);
   return Status::OK();
@@ -284,7 +289,9 @@ XlaDeviceOpRegistrations* RegisterXlaDeviceKernels(const char* device,
   auto dummy_factory = [](OpKernelConstruction* context) -> OpKernel* {
     return new XlaDeviceDummyOp(context);
   };
-  for (const KernelDef* jit_def : XlaOpRegistry::DeviceKernels(jit_device)) {
+  for (const KernelDef* jit_def : XlaOpRegistry::DeviceKernels(
+           jit_device,
+           /*include_compilation_only_kernels=*/false)) {
     KernelDef* def = new KernelDef(*jit_def);
     def->set_device_type(device);
     registrations->op_kernel_registrars.emplace_back(

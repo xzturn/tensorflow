@@ -1,5 +1,7 @@
 licenses(["notice"])  # Apache 2.0
 
+load("//tensorflow:tensorflow.bzl", "tf_cc_test")
+
 package_group(
     name = "internal",
     packages = [
@@ -51,6 +53,41 @@ cc_library(
         "//tensorflow/core:core_cpu_internal",
         "//tensorflow/core:framework",
         "//tensorflow/core:framework_internal",
+        "//tensorflow/core:lib",
+        "//tensorflow/core:protos_all_cc",
+    ],
+)
+
+cc_library(
+    name = "xla_compiled_cpu_function",
+    srcs = ["xla_compiled_cpu_function.cc"],
+    hdrs = ["xla_compiled_cpu_function.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        # Keep dependencies to a minimum here; this library is used in every AOT
+        # binary produced by tfcompile.
+        "//tensorflow/compiler/aot:runtime",
+        "//tensorflow/compiler/tf2xla:xla_local_runtime_context",
+        "//tensorflow/compiler/xla:executable_run_options",
+        "//tensorflow/core:framework_lite",
+    ],
+)
+
+cc_library(
+    name = "xla_jit_compiled_cpu_function",
+    srcs = ["xla_jit_compiled_cpu_function.cc"],
+    hdrs = ["xla_jit_compiled_cpu_function.h"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":tf2xla",
+        ":tf2xla_proto",
+        ":xla_compiled_cpu_function",
+        "//tensorflow/compiler/xla:shape_util",
+        "//tensorflow/compiler/xla:statusor",
+        "//tensorflow/compiler/xla:xla_data_proto",
+        "//tensorflow/compiler/xla/client:client_library",
+        "//tensorflow/compiler/xla/client:local_client",
+        "//tensorflow/compiler/xla/service/cpu:cpu_executable",
         "//tensorflow/core:lib",
         "//tensorflow/core:protos_all_cc",
     ],
@@ -145,7 +182,7 @@ cc_library(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "tf2xla_util_test",
     srcs = ["tf2xla_util_test.cc"],
     deps = [
@@ -157,7 +194,7 @@ cc_test(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "tf2xla_test",
     srcs = ["tf2xla_test.cc"],
     deps = [
@@ -176,7 +213,27 @@ cc_test(
     ],
 )
 
-cc_test(
+tf_cc_test(
+    name = "xla_jit_compiled_cpu_function_test",
+    srcs = ["xla_jit_compiled_cpu_function_test.cc"],
+    deps = [
+        ":tf2xla_proto",
+        ":xla_jit_compiled_cpu_function",
+        "//tensorflow/compiler/xla:shape_util",
+        "//tensorflow/compiler/xla:status_macros",
+        "//tensorflow/compiler/xla:statusor",
+        "//tensorflow/compiler/xla:xla_data_proto",
+        "//tensorflow/compiler/xla/client:local_client",
+        "//tensorflow/compiler/xla/service:cpu_plugin",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
+        "//tensorflow/core:protos_all_cc",
+        "//tensorflow/core:test",
+        "//tensorflow/core:test_main",
+    ],
+)
+
+tf_cc_test(
     name = "xla_compiler_test",
     srcs = ["xla_compiler_test.cc"],
     deps = [
@@ -196,10 +253,11 @@ cc_test(
         "//tensorflow/core:tensor_testutil",
         "//tensorflow/core:test",
         "//tensorflow/core:test_main",
+        "//tensorflow/core:testlib",
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "str_util_test",
     srcs = [
         "str_util_test.cc",
@@ -212,7 +270,7 @@ cc_test(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "literal_util_test",
     srcs = [
         "literal_util_test.cc",
@@ -240,7 +298,7 @@ cc_library(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "const_analysis_test",
     size = "small",
     srcs = ["const_analysis_test.cc"],
@@ -290,6 +348,7 @@ cc_library(
     hdrs = ["functionalize_control_flow.h"],
     deps = [
         "//tensorflow/compiler/jit:graph_to_functiondef",
+        "//tensorflow/compiler/jit:union_find",
         "//tensorflow/compiler/tf2xla:dump_graph",
         "//tensorflow/compiler/tf2xla/ops:functional_ops",
         "//tensorflow/compiler/xla:status_macros",
@@ -297,10 +356,11 @@ cc_library(
         "//tensorflow/core:core_cpu",
         "//tensorflow/core:core_cpu_internal",
         "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "functionalize_control_flow_test",
     srcs = ["functionalize_control_flow_test.cc"],
     deps = [
@@ -314,6 +374,7 @@ cc_test(
         "//tensorflow/compiler/tf2xla/cc:functional_ops",
         "//tensorflow/compiler/xla:status_macros",
         "//tensorflow/core:core_cpu",
+        "//tensorflow/core:core_cpu_internal",
         "//tensorflow/core:framework",
         "//tensorflow/core:framework_internal",
         "//tensorflow/core:ops",

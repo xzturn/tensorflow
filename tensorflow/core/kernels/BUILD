@@ -30,6 +30,7 @@ load(
     "if_android",
     "tf_cc_test",
     "tf_cc_tests",
+    "tf_cc_binary",
     "tf_copts",
     "tf_opts_nortti_if_android",
     "tf_kernel_library",
@@ -220,6 +221,7 @@ cc_library(
         ":initializable_lookup_table",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
+        "//tensorflow/core:lib_internal",
     ],
 )
 
@@ -818,6 +820,7 @@ tf_kernel_library(
     hdrs = ["transpose_op.h"],
     deps = ARRAY_DEPS + if_mkl([
         "//third_party/mkl:intel_binary_blob",
+        "@mkl_dnn//:mkl_dnn",
     ]),
 )
 
@@ -2298,7 +2301,12 @@ tf_kernel_library(
 tf_kernel_library(
     name = "self_adjoint_eig_v2_op",
     prefix = "self_adjoint_eig_v2_op",
-    deps = LINALG_DEPS,
+    deps = LINALG_DEPS + if_cuda([
+        ":cast_op",
+        ":cwise_op",
+        ":cuda_solvers",
+        ":transpose_functor",
+    ]),
 )
 
 tf_kernel_library(
@@ -2589,6 +2597,7 @@ tf_kernel_library(
         "//conditions:default": [],
     }) + if_mkl([
         "//third_party/mkl:intel_binary_blob",
+        "@mkl_dnn//:mkl_dnn",
     ]) + if_cuda([
         "//tensorflow/core/platform/default/build_config:cublas_plugin",
     ]),
@@ -3666,7 +3675,7 @@ cc_library(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "loss_test",
     size = "small",
     srcs = ["loss_test.cc"],
@@ -4009,7 +4018,6 @@ tf_kernel_library(
     name = "word2vec_kernels",
     prefix = "word2vec_kernels",
     deps = [
-        "//tensorflow/core",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
@@ -4055,7 +4063,7 @@ cc_library(
     ],
 )
 
-cc_binary(
+tf_cc_binary(
     name = "spectrogram_convert_test_data",
     testonly = 1,
     srcs = ["spectrogram_convert_test_data.cc"],
@@ -4494,6 +4502,7 @@ filegroup(
         "cwise_op_exp.cc",
         "cwise_op_floor.cc",
         "cwise_op_floor_div.cc",
+        "cwise_op_floor_mod.cc",
         "cwise_op_greater.cc",
         "cwise_op_greater_equal.cc",
         "cwise_op_invert.cc",
@@ -4511,6 +4520,7 @@ filegroup(
         "cwise_op_neg.cc",
         "cwise_op_pow.cc",
         "cwise_op_reciprocal.cc",
+        "cwise_op_round.cc",
         "cwise_op_rsqrt.cc",
         "cwise_op_select.cc",
         "cwise_op_sigmoid.cc",
@@ -4734,11 +4744,12 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//tensorflow/core:android_tensorflow_lib_lite",
-        "//tensorflow/core:protos_cc",
+        "//tensorflow/core:protos_all_cc_impl",
         "//third_party/eigen3",
         "//third_party/fft2d:fft2d_headers",
         "@fft2d//:fft2d",
         "@gemmlowp//:gemmlowp",
+        "@protobuf_archive//:protobuf",
     ],
     alwayslink = 1,
 )
@@ -4800,8 +4811,8 @@ tf_kernel_library(
         ":image_resizer_state",
         ":ops_util",
         ":pooling_ops",
-        "//tensorflow/core",
         "//tensorflow/core:array_ops_op_lib",
+        "//tensorflow/core:core_cpu",
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:math_ops_op_lib",
@@ -4880,7 +4891,7 @@ tf_cc_test(
 )
 
 # Android-only test for quantization utilities.
-cc_binary(
+tf_cc_binary(
     name = "quantization_utils_test_android_only",
     testonly = 1,
     srcs = ["quantization_utils_test.cc"],
@@ -5492,8 +5503,10 @@ tf_mkl_kernel_library(
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
         "//tensorflow/core:nn_ops_op_lib",
+    ] + if_mkl([
         "//third_party/mkl:intel_binary_blob",
-    ],
+        "@mkl_dnn//:mkl_dnn",
+    ]),
 )
 
 tf_mkl_kernel_library(
@@ -5507,8 +5520,10 @@ tf_mkl_kernel_library(
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
         "//tensorflow/core:nn_ops_op_lib",
+    ] + if_mkl([
         "//third_party/mkl:intel_binary_blob",
-    ],
+        "@mkl_dnn//:mkl_dnn",
+    ]),
 )
 
 tf_mkl_kernel_library(
@@ -5557,16 +5572,19 @@ tf_mkl_kernel_library(
         "//tensorflow/core:lib",
         "//tensorflow/core:lib_internal",
         "//tensorflow/core:nn_ops_op_lib",
+    ] + if_mkl([
         "//third_party/mkl:intel_binary_blob",
-    ],
+        "@mkl_dnn//:mkl_dnn",
+    ]),
 )
 
 tf_mkl_kernel_library(
     name = "mkl_fused_batch_norm_op",
     srcs = ["mkl_fused_batch_norm_op.cc"],
-    deps = NN_DEPS + [
+    deps = NN_DEPS + if_mkl([
         "//third_party/mkl:intel_binary_blob",
-    ],
+        "@mkl_dnn//:mkl_dnn",
+    ]),
 )
 
 tf_mkl_kernel_library(
@@ -5580,9 +5598,10 @@ tf_mkl_kernel_library(
 tf_mkl_kernel_library(
     name = "mkl_concat_op",
     prefix = "mkl_concat_op",
-    deps = ARRAY_DEPS + [
+    deps = ARRAY_DEPS + if_mkl([
         "//third_party/mkl:intel_binary_blob",
-    ],
+        "@mkl_dnn//:mkl_dnn",
+    ]),
 )
 
 tf_mkl_kernel_library(
@@ -5596,17 +5615,19 @@ tf_mkl_kernel_library(
 tf_mkl_kernel_library(
     name = "mkl_identity_op",
     prefix = "mkl_identity_op",
-    deps = ARRAY_DEPS + [
+    deps = ARRAY_DEPS + if_mkl([
         "//third_party/mkl:intel_binary_blob",
-    ],
+        "@mkl_dnn//:mkl_dnn",
+    ]),
 )
 
 tf_mkl_kernel_library(
     name = "mkl_lrn_op",
     prefix = "mkl_lrn_op",
-    deps = NN_DEPS + [
+    deps = NN_DEPS + if_mkl([
         "//third_party/mkl:intel_binary_blob",
-    ],
+        "@mkl_dnn//:mkl_dnn",
+    ]),
 )
 
 tf_mkl_kernel_library(
@@ -6065,7 +6086,7 @@ cc_library(
     ],
 )
 
-cc_test(
+tf_cc_test(
     name = "summary_interface_test",
     srcs = ["summary_interface_test.cc"],
     deps = [
