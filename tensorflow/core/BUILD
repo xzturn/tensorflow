@@ -889,6 +889,7 @@ cc_library(
         ":test",
         "//tensorflow/cc:scope",
         "//tensorflow/core/kernels:constant_op",
+        "//tensorflow/core/kernels:ops_testutil",
         "//tensorflow/core/kernels:ops_util",
     ],
 )
@@ -2123,6 +2124,7 @@ GPU_RUNTIME_HEADERS = [
     "common_runtime/gpu/gpu_debug_allocator.h",
     "common_runtime/gpu/gpu_device.h",
     "common_runtime/gpu/gpu_init.h",
+    "common_runtime/gpu/gpu_managed_allocator.h",
     "common_runtime/gpu/gpu_stream_util.h",
     "common_runtime/gpu/gpu_util.h",
     "common_runtime/gpu/pool_allocator.h",
@@ -2137,6 +2139,7 @@ tf_cuda_library(
         "common_runtime/gpu/gpu_debug_allocator.cc",
         "common_runtime/gpu/gpu_device.cc",
         "common_runtime/gpu/gpu_device_factory.cc",
+        "common_runtime/gpu/gpu_managed_allocator.cc",
         "common_runtime/gpu/gpu_stream_util.cc",
         "common_runtime/gpu/gpu_util.cc",
         "common_runtime/gpu/gpu_util_platform_specific.cc",
@@ -2665,6 +2668,22 @@ tf_cc_tests(
         "//tensorflow/cc:sendrecv_ops",
         "//tensorflow/core/kernels:ops_util",
         "//third_party/eigen3",
+    ],
+)
+
+tf_cc_test_mkl(
+    name = "mkl_runtime_tests",
+    size = "small",
+    srcs = ["common_runtime/mkl_cpu_allocator_test.cc"],
+    linkstatic = 1,
+    deps = [
+        ":core",
+        ":core_cpu",
+        ":framework",
+        ":framework_internal",
+        ":test",
+        ":test_main",
+        ":testlib",
     ],
 )
 

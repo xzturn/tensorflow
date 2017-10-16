@@ -163,6 +163,9 @@ HloInstruction::CreateGetTupleElement(const Shape& shape,
     case (HloOpcode::kSubtract):
     case (HloOpcode::kAnd):
     case (HloOpcode::kOr):
+    case (HloOpcode::kShiftLeft):
+    case (HloOpcode::kShiftRightArithmetic):
+    case (HloOpcode::kShiftRightLogical):
       break;
     default:
       LOG(FATAL) << "Invalid binary instruction opcode "
@@ -905,6 +908,9 @@ std::unique_ptr<HloInstruction> HloInstruction::CloneWithNewOperands(
     case HloOpcode::kRemainder:
     case HloOpcode::kAnd:
     case HloOpcode::kOr:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
       CHECK_EQ(new_operands.size(), 2);
       return CreateBinary(shape, opcode_, new_operands[0], new_operands[1]);
     // Ternary ops.
@@ -1293,6 +1299,9 @@ bool HloInstruction::IdenticalSlowPath(
     case HloOpcode::kPower:
     case HloOpcode::kRemainder:
     case HloOpcode::kSelect:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
     case HloOpcode::kSign:
     case HloOpcode::kSin:
     case HloOpcode::kSubtract:
@@ -1984,6 +1993,13 @@ Status HloInstruction::Visit(DfsHloVisitor* visitor) {
       return visitor->HandleAnd(this, operands_[0], operands_[1]);
     case HloOpcode::kOr:
       return visitor->HandleOr(this, operands_[0], operands_[1]);
+    case HloOpcode::kShiftLeft:
+      return visitor->HandleShiftLeft(this, operands_[0], operands_[1]);
+    case HloOpcode::kShiftRightArithmetic:
+      return visitor->HandleShiftRightArithmetic(this, operands_[0],
+                                                 operands_[1]);
+    case HloOpcode::kShiftRightLogical:
+      return visitor->HandleShiftRightLogical(this, operands_[0], operands_[1]);
     case HloOpcode::kConcatenate:
       return visitor->HandleConcatenate(this, operands_);
     case HloOpcode::kConvert:
@@ -2344,6 +2360,9 @@ bool HloInstruction::IsElementwiseBinary() const {
     case HloOpcode::kSubtract:
     case HloOpcode::kAnd:
     case HloOpcode::kOr:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
       return true;
     default:
       return false;
@@ -2393,6 +2412,9 @@ bool HloInstruction::IsElementwise() const {
     case HloOpcode::kSubtract:
     case HloOpcode::kAnd:
     case HloOpcode::kOr:
+    case HloOpcode::kShiftLeft:
+    case HloOpcode::kShiftRightArithmetic:
+    case HloOpcode::kShiftRightLogical:
       return true;
 
     // Ternary elementwise operations.
@@ -2638,8 +2660,8 @@ string HloInstruction::ConvolutionDimensionNumbersToString() const {
   // lhs_dims[i] is the symbol of the logical dimension i for the lhs
   // operand. E.g. if batch has dimension number 2, then lhs_dims[2] == "b".
   std::vector<string> lhs_dims(2 + dnums.spatial_dimensions().size());
-  lhs_dims[dnums.batch_dimension()] = 'b';
-  lhs_dims[dnums.feature_dimension()] = 'f';
+  lhs_dims[dnums.input_batch_dimension()] = 'b';
+  lhs_dims[dnums.input_feature_dimension()] = 'f';
   for (int64 i = 0; i < dnums.spatial_dimensions().size(); ++i) {
     lhs_dims[dnums.spatial_dimensions(i)] = StrCat(i);
   }
@@ -2651,12 +2673,19 @@ string HloInstruction::ConvolutionDimensionNumbersToString() const {
     rhs_dims[dnums.kernel_spatial_dimensions(i)] = StrCat(i);
   }
 
+  std::vector<string> output_dims(2 + dnums.spatial_dimensions().size());
+  output_dims[dnums.output_batch_dimension()] = 'b';
+  output_dims[dnums.output_feature_dimension()] = 'f';
+  for (int64 i = 0; i < dnums.spatial_dimensions().size(); ++i) {
+    output_dims[dnums.spatial_dimensions(i)] = StrCat(i);
+  }
+
   result += "dim_labels=";
   append_dims(lhs_dims, operand(0)->shape());
   result += "_";
   append_dims(rhs_dims, operand(1)->shape());
   result += "->";
-  append_dims(lhs_dims, shape());
+  append_dims(output_dims, shape());
   return result;
 }
 

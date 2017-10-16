@@ -593,11 +593,10 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
   patched_http_archive(
       name = "boringssl",
       urls = [
-          "http://mirror.bazel.build/github.com/google/boringssl/archive/e3860009a091cd1bd2bc189cdbc3c6d095abde84.tar.gz",
-          # "https://github.com/google/boringssl/archive/e3860009a091cd1bd2bc189cdbc3c6d095abde84.tar.gz",  # 2017-07-07
+          "https://github.com/google/boringssl/archive/72cfd9f49ec5fbc2db368b76398c196dafe6a4bc.tar.gz",
       ],
-      sha256 = "02f5950f93c4fd3691771c07c9d04cf2999ab01383ff99da345249e93b0fcfb2",
-      strip_prefix = "boringssl-e3860009a091cd1bd2bc189cdbc3c6d095abde84",
+      sha256 = "5e6f7b72c74adeb902581271925ddb979e77b96327abd76604ce894d80680e51",
+      strip_prefix = "boringssl-72cfd9f49ec5fbc2db368b76398c196dafe6a4bc",
       # Add patch to boringssl code to support s390x
       patch_file = str(Label("//third_party/boringssl:add_boringssl_s390x.patch")),
   )
@@ -698,6 +697,31 @@ def tf_workspace(path_prefix="", tf_repo_name=""):
       strip_prefix = "jemalloc-4.4.0",
       build_file = str(Label("//third_party:jemalloc.BUILD")),
       repository = tf_repo_name,
+  )
+
+  java_import_external(
+      name = "com_google_testing_compile",
+      jar_sha256 = "edc180fdcd9f740240da1a7a45673f46f59c5578d8cd3fbc912161f74b5aebb8",
+      jar_urls = [
+          "http://mirror.bazel.build/repo1.maven.org/maven2/com/google/testing/compile/compile-testing/0.11/compile-testing-0.11.jar",
+          "http://repo1.maven.org/maven2/com/google/testing/compile/compile-testing/0.11/compile-testing-0.11.jar",
+          "http://maven.ibiblio.org/maven2/com/google/testing/compile/compile-testing/0.11/compile-testing-0.11.jar",
+      ],
+      licenses = ["notice"],  # New BSD License
+      testonly_ = True,
+      deps = ["@com_google_guava", "@com_google_truth"],
+  )
+
+  java_import_external(
+      name = "com_google_truth",
+      jar_sha256 = "032eddc69652b0a1f8d458f999b4a9534965c646b8b5de0eba48ee69407051df",
+      jar_urls = [
+          "http://mirror.bazel.build/repo1.maven.org/maven2/com/google/truth/truth/0.32/truth-0.32.jar",
+          "http://repo1.maven.org/maven2/com/google/truth/truth/0.32/truth-0.32.jar",
+      ],
+      licenses = ["notice"],  # Apache 2.0
+      testonly_ = True,
+      deps = ["@com_google_guava"],
   )
 
   native.new_http_archive(
