@@ -1411,7 +1411,7 @@ cc_library(
     hdrs = LIB_INTERNAL_PUBLIC_HEADERS,
     copts = tf_copts(),
     defines = tf_additional_lib_defines() + [
-                  "SNAPPY",
+                  "TF_USE_SNAPPY",
               ] + tf_additional_verbs_lib_defines() +
               tf_additional_mpi_lib_defines() +
               tf_additional_gdr_lib_defines(),
@@ -2179,6 +2179,7 @@ tf_cuda_library(
         ":lib",
         ":lib_internal",
         ":protos_all_cc",
+        ":stream_executor",
         "//third_party/eigen3",
     ] + if_static([":gpu_runtime_impl"]),
 )
