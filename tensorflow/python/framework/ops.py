@@ -2713,7 +2713,16 @@ class Graph(object):
       A `VersionDef`.
     """
     # pylint: enable=line-too-long
-    return self._graph_def_versions
+    if self._c_graph:
+      with errors.raise_exception_on_not_ok_status() as status:
+        with c_api_util.tf_buffer() as buf:
+          c_api.TF_GraphVersions(self._c_graph, buf, status)
+          data = c_api.TF_GetBuffer(buf)
+      version_def = versions_pb2.VersionDef()
+      version_def.ParseFromString(compat.as_bytes(data))
+      return version_def
+    else:
+      return self._graph_def_versions
 
   @property
   def seed(self):
@@ -4330,11 +4339,18 @@ def device(device_name_or_function):
   Returns:
     A context manager that specifies the default device to use for newly
     created ops.
+
+  Raises:
+    RuntimeError: If eager execution is enabled and a function is passed in.
   """
   if context.in_graph_mode():
     return get_default_graph().device(device_name_or_function)
   else:
     # TODO(agarwal): support device functions in EAGER mode.
+    if callable(device_name_or_function):
+      raise RuntimeError(
+          "tf.device does not support functions when eager execution "
+          "is enabled.")
     return context.device(device_name_or_function)
 
 
