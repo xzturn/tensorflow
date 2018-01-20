@@ -277,6 +277,7 @@ cc_library(
         "platform/platform.h",
         "platform/protobuf.h",
         "platform/types.h",
+        "platform/windows/cpu_info.h",
         "lib/bfloat16/bfloat16.h",
     ] + tf_additional_proto_hdrs() + glob(tf_env_time_hdrs()),
     copts = tf_copts(),
@@ -3455,36 +3456,6 @@ tf_cc_test(
         ":testlib",
         "//tensorflow/cc:cc_ops",
         "//tensorflow/core/kernels:example_parsing_ops",
-    ],
-)
-
-filegroup(
-    name = "base_api_def",
-    srcs = glob(["api_def/base_api/*"]),
-)
-
-filegroup(
-    name = "python_api_def",
-    srcs = glob(["api_def/python_api/*"]),
-)
-
-tf_cc_test(
-    name = "api_test",
-    srcs = ["api_def/api_test.cc"],
-    data = [
-        ":base_api_def",
-    ],
-    deps = [
-        ":framework",
-        ":framework_internal",
-        ":lib",
-        ":lib_internal",
-        ":lib_test_internal",
-        ":op_gen_lib",
-        ":ops",
-        ":protos_all_cc",
-        ":test",
-        ":test_main",
     ],
 )
 
