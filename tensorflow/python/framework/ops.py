@@ -395,10 +395,10 @@ class Tensor(_TensorLike):
         "Tensor._shape cannot be assigned, use Tensor.set_shape instead.")
 
   def __iter__(self):
-    if context.in_graph_mode():
+    if not context.executing_eagerly():
       raise TypeError(
-          "`Tensor` objects are not iterable when eager execution is not "
-          "enabled. To iterate over this tensor use `tf.map_fn`.")
+          "Tensor objects are not iterable when eager execution is not "
+          "enabled. To iterate over this tensor use tf.map_fn.")
     shape = self._shape_tuple()
     if shape is None:
       raise TypeError("Cannot iterate over a tensor with unknown shape.")
@@ -772,7 +772,7 @@ class _EagerTensorBase(Tensor):
       six.raise_from(core._status_to_exception(e.code, e.message), None)
 
     # Record the copy on tape and define backprop copy as well.
-    if not context.in_graph_mode():
+    if context.executing_eagerly():
       self_device = self.device
       def grad_fun(dresult):
         return [dresult._copy(device_name=self_device)]
@@ -993,7 +993,7 @@ def internal_convert_to_tensor(value,
 
   """
   if ctx is None: ctx = context.context()
-  if ctx.in_eager_mode():
+  if ctx.executing_eagerly():
     # Fast path for EagerTensors that don't need any conversion.
     if isinstance(value, EagerTensor):
       # Note that we don't check that value's dtype matches the dtype
@@ -2694,15 +2694,20 @@ class Graph(object):
 
   def __init__(self):
     """Creates a new, empty Graph."""
-    # Protects the core state that may be accessed by multiple readers.
-    # Only state that can be returned via public accessors (`as_graph_def()`,
-    # `get_operations()`, `as_graph_element()`, `get_collection()`, and
-    # `get_collection_ref()`) is by the lock. Thread-safety is provided on a
-    # best-effort basis to support buggy programs, and is not guaranteed by the
-    # public `tf.Graph` API.
+    # Protects core state that can be returned via public accessors, as well as
+    # synchronizes Session.run calls with methods that create and mutate ops
+    # (e.g. Graph.create_op()). This synchronization is necessary because it's
+    # illegal to modify an operation after it's been run. Thread-safety is
+    # provided on a best-effort basis to support buggy programs, and is not
+    # guaranteed by the public `tf.Graph` API.
+    #
+    # The lock must be reentrant because create_op can be called recursively due
+    # to control flow. Without a reentrant lock, many methods would also need a
+    # "locked" version or parameter (including generated code).
+    #
     # NOTE(mrry): This does not protect the various stacks. A warning will
     # be reported if these are used from multiple threads
-    self._lock = threading.Lock()
+    self._lock = threading.RLock()
     self._nodes_by_id = dict()  # GUARDED_BY(self._lock)
     self._next_id_counter = 0  # GUARDED_BY(self._lock)
     self._nodes_by_name = dict()  # GUARDED_BY(self._lock)
@@ -3271,17 +3276,20 @@ class Graph(object):
 
     input_ops = set([t.op for t in inputs])
     control_inputs = self._control_dependencies_for_inputs(input_ops)
-    ret = Operation(
-        node_def,
-        self,
-        inputs=inputs,
-        output_types=dtypes,
-        control_inputs=control_inputs,
-        input_types=input_types,
-        original_op=self._default_original_op,
-        op_def=op_def)
-    self._create_op_helper(ret, compute_shapes=compute_shapes,
-                           compute_device=compute_device)
+    # _create_op_helper mutates the new Operation. _lock ensures a Session.run
+    # call cannot occur between creating and mutating the op.
+    with self._lock:
+      ret = Operation(
+          node_def,
+          self,
+          inputs=inputs,
+          output_types=dtypes,
+          control_inputs=control_inputs,
+          input_types=input_types,
+          original_op=self._default_original_op,
+          op_def=op_def)
+      self._create_op_helper(ret, compute_shapes=compute_shapes,
+                             compute_device=compute_device)
     return ret
 
   def _create_op_from_tf_operation(self, c_op, compute_device=True):
@@ -4789,15 +4797,15 @@ def device(device_name_or_function):
   Raises:
     RuntimeError: If eager execution is enabled and a function is passed in.
   """
-  if context.in_graph_mode():
-    return get_default_graph().device(device_name_or_function)
-  else:
+  if context.executing_eagerly():
     # TODO(agarwal): support device functions in EAGER mode.
     if callable(device_name_or_function):
       raise RuntimeError(
           "tf.device does not support functions when eager execution "
           "is enabled.")
     return context.device(device_name_or_function)
+  else:
+    return get_default_graph().device(device_name_or_function)
 
 
 @tf_export("container")
@@ -4816,7 +4824,12 @@ def container(container_name):
 
 @tf_export("colocate_with")
 def colocate_with(op, ignore_existing=False):
-  if context.in_graph_mode():
+  if context.executing_eagerly():
+    if op is not None:
+      return device(op.device)
+    else:
+      return _NullContextmanager()
+  else:
     default_graph = get_default_graph()
     if isinstance(op, EagerTensor):
       if default_graph.building_function:
@@ -4825,11 +4838,6 @@ def colocate_with(op, ignore_existing=False):
         raise ValueError("Encountered an Eager-defined Tensor during graph "
                          "construction, but a function was not being built.")
     return default_graph.colocate_with(op, ignore_existing)
-  else:
-    if op is not None:
-      return device(op.device)
-    else:
-      return _NullContextmanager()
 
 
 @tf_export("control_dependencies")
@@ -4849,10 +4857,10 @@ def control_dependencies(control_inputs):
    A context manager that specifies control dependencies for all
    operations constructed within the context.
   """
-  if context.in_graph_mode():
-    return get_default_graph().control_dependencies(control_inputs)
-  else:
+  if context.executing_eagerly():
     return _NullContextmanager()
+  else:
+    return get_default_graph().control_dependencies(control_inputs)
 
 
 class _DefaultStack(threading.local):
@@ -5115,7 +5123,7 @@ def init_scope():
   """
   # pylint: enable=g-doc-return-or-yield,line-too-long
 
-  if context.in_eager_mode():
+  if context.executing_eagerly():
     # Fastpath.
     with tape.stop_recording():
       yield
@@ -5697,7 +5705,7 @@ class name_scope(object):  # pylint: disable=invalid-name
     self._default_name = default_name
     self._values = values
     self._ctx = context.context()
-    self._in_eager_mode = self._ctx.in_eager_mode()
+    self._in_eager_mode = self._ctx.executing_eagerly()
 
   def __enter__(self):
     """Start the scope block.
@@ -5876,7 +5884,7 @@ def get_from_proto_function(collection_name):
 
 
 def _assert_collection_is_ok(collection_name):
-  if context.in_eager_mode():
+  if context.executing_eagerly():
     if collection_name in GraphKeys._VARIABLE_COLLECTIONS:  # pylint: disable=protected-access
       raise ValueError("When Eager Execution is enabled, variable "
                        "collections are not supported.")
