@@ -1,4 +1,4 @@
-# Copyright 2017 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2018 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,19 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Hamiltonian Monte Carlo, a gradient-based MCMC algorithm."""
-
+"""Python helper for loading kafka ops and kernels."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-# go/tf-wildcard-import
-from tensorflow.contrib.bayesflow.python.ops.hmc_impl import *  # pylint: disable=wildcard-import,unused-wildcard-import,g-importing-member
-from tensorflow.python.util import all_util
+from tensorflow.contrib.util import loader
+from tensorflow.python.platform import resource_loader
 
-_allowed_symbols = [
-    "sample_chain",
-    "kernel",
-]
-
-all_util.remove_undocumented(__name__, _allowed_symbols)
+_dataset_ops = loader.load_op_library(
+    resource_loader.get_path_to_datafile("../../_dataset_ops.so"))
