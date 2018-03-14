@@ -78,6 +78,10 @@ bool IsConstant(const NodeDef& node) { return node.op() == "Const"; }
 
 bool IsConj(const NodeDef& node) { return node.op() == "Conj"; }
 
+bool IsConjugateTranspose(const NodeDef& node) {
+  return node.op() == "ConjugateTranspose";
+}
+
 bool IsConv2D(const NodeDef& node) { return node.op() == "Conv2D"; }
 
 bool IsConv2DBackpropFilter(const NodeDef& node) {
@@ -212,6 +216,8 @@ bool IsNextIteration(const NodeDef& node) {
   const auto& op = node.op();
   return op == "NextIteration" || op == "RefNextIteration";
 }
+
+bool IsPack(const NodeDef& node) { return node.op() == "Pack"; }
 
 bool IsPad(const NodeDef& node) {
   const auto& op = node.op();
