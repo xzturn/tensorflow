@@ -487,11 +487,7 @@ cuda_py_test(
         "//third_party/py/numpy",
         "//tensorflow/python:client_testlib",
     ],
-    tags = [
-        "manual",
-        "noasan",
-        "noguitar",
-    ],
+    tags = ["noasan"],  # Was found to time out in asan
 )
 
 cuda_py_test(
@@ -1091,25 +1087,6 @@ cuda_py_test(
     name = "sigmoid_test",
     size = "small",
     srcs = ["python/kernel_tests/bijectors/sigmoid_test.py"],
-    additional_deps = [
-        ":bijectors_py",
-        ":distributions_py",
-        "//third_party/py/numpy",
-        "@six_archive//:six",
-        "//tensorflow/contrib/linalg:linalg_py",
-        "//tensorflow/python:array_ops",
-        "//tensorflow/python:client_testlib",
-        "//tensorflow/python:framework_for_generated_wrappers",
-        "//tensorflow/python:framework_test_lib",
-        "//tensorflow/python:math_ops",
-        "//tensorflow/python:platform_test",
-    ],
-)
-
-cuda_py_test(
-    name = "sigmoid_centered_test",
-    size = "small",
-    srcs = ["python/kernel_tests/bijectors/sigmoid_centered_test.py"],
     additional_deps = [
         ":bijectors_py",
         ":distributions_py",
