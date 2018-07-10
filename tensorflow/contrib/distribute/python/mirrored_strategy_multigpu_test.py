@@ -491,13 +491,14 @@ class MirroredStrategyVariableCreationTest(test.TestCase):
     components_mean = {}
 
     def model_fn(device_id):
-      tower_context = distribute_lib.get_tower_context()
-      with tower_context.tower_local_var_scope(
-          variable_scope.VariableAggregation.SUM):
-        v_sum = variable_scope.variable(1.0)
-      with tower_context.tower_local_var_scope(
-          variable_scope.VariableAggregation.MEAN):
-        v_mean = variable_scope.variable(4.0)
+      v_sum = variable_scope.variable(
+          1.0,
+          synchronization=variable_scope.VariableSynchronization.ON_READ,
+          aggregation=variable_scope.VariableAggregation.SUM)
+      v_mean = variable_scope.variable(
+          4.0,
+          synchronization=variable_scope.VariableSynchronization.ON_READ,
+          aggregation=variable_scope.VariableAggregation.MEAN)
       self.assertTrue(isinstance(v_sum, values.TowerLocalVariable))
       self.assertTrue(isinstance(v_mean, values.TowerLocalVariable))
       updates = [v_sum.assign_add(2.0 + device_id),
@@ -700,10 +701,10 @@ class MirroredStrategyVariableCreationTest(test.TestCase):
     with context.graph_mode():
 
       def model_fn():
-        tower_context = distribute_lib.get_tower_context()
-        with tower_context.tower_local_var_scope(
-            variable_scope.VariableAggregation.SUM):
-          v_sum = variable_scope.variable(1.0)
+        v_sum = variable_scope.variable(
+            1.0,
+            synchronization=variable_scope.VariableSynchronization.ON_READ,
+            aggregation=variable_scope.VariableAggregation.SUM)
         self.assertTrue(isinstance(v_sum, values.TowerLocalVariable))
         return v_sum
 
@@ -921,6 +922,50 @@ class MirroredVariableUpdateTest(test.TestCase):
           model_fn, run_concurrently=False)))
       self.assertEquals(4.5, self.evaluate(mirrored_var))
 
+
+class MirroredAndTowerLocalVariableInitializerTest(test.TestCase):
+  config = config_pb2.ConfigProto()
+  config.allow_soft_placement = True
+
+  def testAssignMirroredVarInitializer(self):
+    # This test is not eager compatible since in eager variables are initialized
+    # upon construction instead of once the initialization op is run.
+    with context.graph_mode():
+      def var_fn():
+        v = variable_scope.variable(1.0, name="foo")
+        return v
+
+      dist = mirrored_strategy.MirroredStrategy(
+          ["/device:GPU:0", "/device:CPU:0"])
+
+      with dist.scope():
+        mirrored_var = dist.call_for_each_tower(var_fn)
+        self.assertIsInstance(mirrored_var, values.MirroredVariable)
+        self.assertFalse(self.evaluate(mirrored_var.is_initialized()))
+        self.evaluate(mirrored_var.initializer)
+        self.assertTrue(self.evaluate(mirrored_var.is_initialized()))
+
+  def testAssignTowerLocalVarInitializer(self):
+    # This test is not eager compatible since in eager variables are initialized
+    # upon construction instead of once the initialization op is run.
+    with context.graph_mode():
+      def model_fn():
+        v_sum = variable_scope.variable(
+            1.0,
+            synchronization=variable_scope.VariableSynchronization.ON_READ,
+            aggregation=variable_scope.VariableAggregation.SUM)
+        self.assertTrue(isinstance(v_sum, values.TowerLocalVariable))
+        return v_sum
+
+      dist = mirrored_strategy.MirroredStrategy(
+          ["/device:GPU:0", "/device:CPU:0"])
+
+      with dist.scope():
+        tower_local_var = dist.call_for_each_tower(model_fn)
+        self.assertTrue(isinstance(tower_local_var, values.TowerLocalVariable))
+        self.assertFalse(self.evaluate(tower_local_var.is_initialized()))
+        self.evaluate(tower_local_var.initializer)
+        self.assertTrue(self.evaluate(tower_local_var.is_initialized()))
 
 if __name__ == "__main__":
   test.main()

@@ -13,26 +13,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <jni.h>
-#include <time.h>
+#include "tensorflow/core/platform/logging.h"
+#include "tensorflow/core/platform/test_benchmark.h"
 
-namespace tflite {
+namespace tensorflow {
 
-// Gets the elapsed wall-clock timespec.
-timespec getCurrentTime() {
-  timespec time;
-  clock_gettime(CLOCK_MONOTONIC, &time);
-  return time;
+static void BM_DisabledVlog(int iters) {
+  for (int i = 0; i < iters; ++i) {
+    VLOG(1) << "Testing VLOG(1)!";
+  }
 }
+BENCHMARK(BM_DisabledVlog);
 
-// Computes the time diff from two timespecs. Returns '-1' if 'stop' is earlier
-// than 'start'.
-jlong timespec_diff_nanoseconds(struct timespec* start, struct timespec* stop) {
-  jlong result = stop->tv_sec - start->tv_sec;
-  if (result < 0) return -1;
-  result = 1000000000 * result + (stop->tv_nsec - start->tv_nsec);
-  if (result < 0) return -1;
-  return result;
-}
-
-}  // namespace tflite
+}  // namespace tensorflow

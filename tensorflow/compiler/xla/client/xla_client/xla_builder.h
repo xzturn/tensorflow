@@ -23,6 +23,7 @@ limitations under the License.
 
 #include "tensorflow/compiler/xla/client/padding.h"
 #include "tensorflow/compiler/xla/client/xla_client/xla_computation.h"
+#include "tensorflow/compiler/xla/literal.h"
 #include "tensorflow/compiler/xla/literal_util.h"
 #include "tensorflow/compiler/xla/service/hlo.pb.h"
 #include "tensorflow/compiler/xla/service/hlo_opcode.h"
@@ -532,6 +533,8 @@ class XlaBuilder {
   // Enqueues an infeed instruction onto the computation, which writes data of
   // the given shape to the infeed buffer of the device.
   XlaOp Infeed(const Shape& shape, const string& config = "");
+  XlaOp InfeedWithToken(const XlaOp& token, const Shape& shape,
+                        const string& config = "");
 
   // Enqueues an outfeed instruction onto the computation. This instruction
   // generates outgoing data transfers for the given data.
@@ -541,6 +544,9 @@ class XlaBuilder {
   // will occur.
   void Outfeed(const XlaOp& operand, const Shape& shape_with_layout,
                const string& outfeed_config);
+  XlaOp OutfeedWithToken(const XlaOp& operand, const XlaOp& token,
+                         const Shape& shape_with_layout,
+                         const string& outfeed_config);
 
   // Enqueues a call instruction onto the computation.
   XlaOp Call(const XlaComputation& computation,
@@ -839,11 +845,23 @@ class XlaBuilder {
   // Enqueues a Send node onto the computation, to send the given operand to
   // a Recv instruction that shares the same channel handle.
   void Send(const XlaOp& operand, const ChannelHandle& handle);
+  XlaOp SendWithToken(const XlaOp& operand, const XlaOp& token,
+                      const ChannelHandle& handle);
+
+  // Enqueues an AfterAll operation with no operands producing a token-shaped
+  // value.
+  XlaOp CreateToken();
+
+  // Enqueues an AfterAll operation with no operands producing a token-shaped
+  // value.
+  XlaOp AfterAll(tensorflow::gtl::ArraySlice<XlaOp> tokens);
 
   // Enqueues a Recv node onto the computation. The data comes from a Send
   // instruction that shares the same channel handle and its shape must
   // be the same as the given shape.
   XlaOp Recv(const Shape& shape, const ChannelHandle& handle);
+  XlaOp RecvWithToken(const XlaOp& token, const Shape& shape,
+                      const ChannelHandle& handle);
 
   // Normalizes operand across spatial and batch dimensions for each feature.
   //
@@ -1264,6 +1282,18 @@ class XlaBuilder {
                              const XlaOp& batch_mean, const XlaOp& batch_var,
                              const XlaOp& grad_output, float epsilon,
                              int64 feature_index);
+  friend XlaOp SendWithToken(const XlaOp& operand, const XlaOp& token,
+                             const ChannelHandle& handle);
+  friend XlaOp RecvWithToken(const XlaOp& token, const Shape& shape,
+                             const ChannelHandle& handle);
+  friend XlaOp InfeedWithToken(const XlaOp& token, const Shape& shape,
+                               const string& config);
+  friend XlaOp OutfeedWithToken(const XlaOp& operand, const XlaOp& token,
+                                const Shape& shape_with_layout,
+                                const string& outfeed_config);
+  friend XlaOp CreateToken(XlaBuilder* builder);
+  friend XlaOp AfterAll(XlaBuilder* builder,
+                        tensorflow::gtl::ArraySlice<XlaOp> tokens);
 };
 
 // RAII-style object: sets the current sharding assignment in builder on
@@ -1595,6 +1625,13 @@ XlaOp Fft(const XlaOp& operand, FftType fft_type,
 XlaOp Infeed(XlaBuilder* builder, const Shape& shape,
              const string& config = "");
 
+// Variant of Infeed which takes a token-shaped operand and produces a
+// two-element tuple containing the data value and a token-shaped value.
+// Tokens are used for ordering side-effecting operations.
+// TODO(b/110532604): Replace all uses of the non-token form with this variant.
+XlaOp InfeedWithToken(const XlaOp& token, const Shape& shape,
+                      const string& config = "");
+
 // Enqueues an outfeed instruction onto the computation. This instruction
 // generates outgoing data transfers for the given data.
 //
@@ -1603,6 +1640,13 @@ XlaOp Infeed(XlaBuilder* builder, const Shape& shape,
 // will occur.
 void Outfeed(const XlaOp& operand, const Shape& shape_with_layout,
              const string& outfeed_config);
+
+// Variant of Outfeed which takes a token-shaped operand and produces a
+// token-shaped value. Tokens are used for ordering side-effecting operations.
+// TODO(b/110532604): Replace all uses of the non-token form with this variant.
+XlaOp OutfeedWithToken(const XlaOp& operand, const XlaOp& token,
+                       const Shape& shape_with_layout,
+                       const string& outfeed_config);
 
 // Enqueues a call instruction onto the computation.
 XlaOp Call(XlaBuilder* builder, const XlaComputation& computation,
@@ -1895,11 +1939,37 @@ XlaOp Gather(const XlaOp& input, const XlaOp& gather_indices,
 // a Recv instruction that shares the same channel handle.
 void Send(const XlaOp& operand, const ChannelHandle& handle);
 
+// Variant of Send which takes a token-shaped operand and produces a
+// token-shaped value.  Tokens are used for ordering side-effecting operations.
+// TODO(b/110532604): Replace all uses of the non-token form with this variant.
+XlaOp SendWithToken(const XlaOp& operand, const XlaOp& token,
+                    const ChannelHandle& handle);
+
 // Enqueues a Recv node onto the computation. The data comes from a Send
 // instruction that shares the same channel handle and its shape must
 // be the same as the given shape.
 XlaOp Recv(XlaBuilder* builder, const Shape& shape,
            const ChannelHandle& handle);
+
+// Variant of Recv which takes a token-shaped operand and produces a two-element
+// tuple containing the data value and a token-shaped value. Tokens are used
+// for ordering side-effecting operations.
+// TODO(b/110532604): Replace all uses of the non-token form with this variant.
+XlaOp RecvWithToken(const XlaOp& token, const Shape& shape,
+                    const ChannelHandle& handle);
+
+// Enqueues an operation (AfterAll) with no operands that produces a
+// token-shaped value.  Tokens are used for ordering side-effecting operations.
+// This is a separate method from AfterAll to facility the removal of
+// operand-less AfterAll instructions.
+// TODO(b/110532604): Remove this function when all tokens are derived from a
+// single token generated or passed into the entry computation.
+XlaOp CreateToken(XlaBuilder* builder);
+
+// Enqueues an AfterAll instruction which produces a token-shaped value and
+// takes a variadic number of token-shaped operands. The number of operands must
+// be greater than zero. Used for joining tokens.
+XlaOp AfterAll(XlaBuilder* builder, tensorflow::gtl::ArraySlice<XlaOp> tokens);
 
 // Normalizes operand across spatial and batch dimensions for each feature.
 //
@@ -1943,12 +2013,12 @@ XlaOp BatchNormGrad(const XlaOp& operand, const XlaOp& scale,
 
 template <typename NativeT>
 XlaOp XlaBuilder::ConstantR0(NativeT value) {
-  return ConstantLiteral(*Literal::CreateR0<NativeT>(value));
+  return ConstantLiteral(*LiteralUtil::CreateR0<NativeT>(value));
 }
 
 template <typename NativeT>
 XlaOp XlaBuilder::ConstantR1(tensorflow::gtl::ArraySlice<NativeT> values) {
-  return ConstantLiteral(*Literal::CreateR1<NativeT>(values));
+  return ConstantLiteral(*LiteralUtil::CreateR1<NativeT>(values));
 }
 
 template <typename NativeT>
@@ -1960,44 +2030,44 @@ XlaOp XlaBuilder::ConstantR1(int64 length, NativeT value) {
 }
 
 inline XlaOp XlaBuilder::ConstantR1(const tensorflow::core::Bitmap& values) {
-  return ConstantLiteral(*Literal::CreateR1(values));
+  return ConstantLiteral(*LiteralUtil::CreateR1(values));
 }
 
 template <typename NativeT>
 XlaOp XlaBuilder::ConstantR2(
     std::initializer_list<std::initializer_list<NativeT>> values) {
-  return ConstantLiteral(*Literal::CreateR2<NativeT>(values));
+  return ConstantLiteral(*LiteralUtil::CreateR2<NativeT>(values));
 }
 
 template <typename NativeT>
 XlaOp XlaBuilder::ConstantFromArrayWithLayout(const Array<NativeT>& values,
                                               const Layout& layout) {
   return ConstantLiteral(
-      *Literal::CreateFromArrayWithLayout<NativeT>(values, layout));
+      *LiteralUtil::CreateFromArrayWithLayout<NativeT>(values, layout));
 }
 
 template <typename NativeT>
 XlaOp XlaBuilder::ConstantFromArray(const Array<NativeT>& values) {
-  return ConstantLiteral(*Literal::CreateFromArray<NativeT>(values));
+  return ConstantLiteral(*LiteralUtil::CreateFromArray<NativeT>(values));
 }
 
 template <typename NativeT>
 XlaOp XlaBuilder::ConstantR2FromArray2DWithLayout(
     const Array2D<NativeT>& values, const Layout& layout) {
   return ConstantLiteral(
-      *Literal::CreateFromArrayWithLayout<NativeT>(values, layout));
+      *LiteralUtil::CreateFromArrayWithLayout<NativeT>(values, layout));
 }
 
 template <typename NativeT>
 XlaOp XlaBuilder::ConstantR2FromArray2D(const Array2D<NativeT>& values) {
-  return ConstantLiteral(*Literal::CreateR2FromArray2D<NativeT>(values));
+  return ConstantLiteral(*LiteralUtil::CreateR2FromArray2D<NativeT>(values));
 }
 
 template <typename NativeT>
 XlaOp XlaBuilder::ConstantR3FromArray3DWithLayout(
     const Array3D<NativeT>& values, const Layout& layout) {
   return ConstantLiteral(
-      *Literal::CreateR3FromArray3DWithLayout<NativeT>(values, layout));
+      *LiteralUtil::CreateR3FromArray3DWithLayout<NativeT>(values, layout));
 }
 
 template <typename NativeT>
@@ -2020,13 +2090,13 @@ XlaOp XlaBuilder::ConstantR4FromArray4D(const Array4D<NativeT>& values) {
 
 template <typename NativeT>
 XlaOp ConstantR0(XlaBuilder* builder, NativeT value) {
-  return ConstantLiteral(builder, *Literal::CreateR0<NativeT>(value));
+  return ConstantLiteral(builder, *LiteralUtil::CreateR0<NativeT>(value));
 }
 
 template <typename NativeT>
 XlaOp ConstantR1(XlaBuilder* builder,
                  tensorflow::gtl::ArraySlice<NativeT> values) {
-  return ConstantLiteral(builder, *Literal::CreateR1<NativeT>(values));
+  return ConstantLiteral(builder, *LiteralUtil::CreateR1<NativeT>(values));
 }
 
 template <typename NativeT>
@@ -2039,13 +2109,13 @@ XlaOp ConstantR1(XlaBuilder* builder, int64 length, NativeT value) {
 
 inline XlaOp ConstantR1(XlaBuilder* builder,
                         const tensorflow::core::Bitmap& values) {
-  return ConstantLiteral(builder, *Literal::CreateR1(values));
+  return ConstantLiteral(builder, *LiteralUtil::CreateR1(values));
 }
 
 template <typename NativeT>
 XlaOp ConstantR2(XlaBuilder* builder,
                  std::initializer_list<std::initializer_list<NativeT>> values) {
-  return ConstantLiteral(builder, *Literal::CreateR2<NativeT>(values));
+  return ConstantLiteral(builder, *LiteralUtil::CreateR2<NativeT>(values));
 }
 
 template <typename NativeT>
@@ -2053,12 +2123,14 @@ XlaOp ConstantFromArrayWithLayout(XlaBuilder* builder,
                                   const Array<NativeT>& values,
                                   const Layout& layout) {
   return ConstantLiteral(
-      builder, *Literal::CreateFromArrayWithLayout<NativeT>(values, layout));
+      builder,
+      *LiteralUtil::CreateFromArrayWithLayout<NativeT>(values, layout));
 }
 
 template <typename NativeT>
 XlaOp ConstantFromArray(XlaBuilder* builder, const Array<NativeT>& values) {
-  return ConstantLiteral(builder, *Literal::CreateFromArray<NativeT>(values));
+  return ConstantLiteral(builder,
+                         *LiteralUtil::CreateFromArray<NativeT>(values));
 }
 
 template <typename NativeT>
@@ -2066,14 +2138,15 @@ XlaOp ConstantR2FromArray2DWithLayout(XlaBuilder* builder,
                                       const Array2D<NativeT>& values,
                                       const Layout& layout) {
   return ConstantLiteral(
-      builder, *Literal::CreateFromArrayWithLayout<NativeT>(values, layout));
+      builder,
+      *LiteralUtil::CreateFromArrayWithLayout<NativeT>(values, layout));
 }
 
 template <typename NativeT>
 XlaOp ConstantR2FromArray2D(XlaBuilder* builder,
                             const Array2D<NativeT>& values) {
   return ConstantLiteral(builder,
-                         *Literal::CreateR2FromArray2D<NativeT>(values));
+                         *LiteralUtil::CreateR2FromArray2D<NativeT>(values));
 }
 
 template <typename NativeT>
@@ -2082,7 +2155,7 @@ XlaOp ConstantR3FromArray3DWithLayout(XlaBuilder* builder,
                                       const Layout& layout) {
   return ConstantLiteral(
       builder,
-      *Literal::CreateR3FromArray3DWithLayout<NativeT>(values, layout));
+      *LiteralUtil::CreateR3FromArray3DWithLayout<NativeT>(values, layout));
 }
 
 template <typename NativeT>

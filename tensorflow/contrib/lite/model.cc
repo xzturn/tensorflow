@@ -186,6 +186,8 @@ InterpreterBuilder::InterpreterBuilder(const ::tflite::Model* model,
       op_resolver_(op_resolver),
       error_reporter_(ValidateErrorReporter(error_reporter)) {}
 
+InterpreterBuilder::~InterpreterBuilder() {}
+
 TfLiteStatus InterpreterBuilder::BuildLocalIndexToRegistrationMapping() {
   TfLiteStatus status = kTfLiteOk;
   auto opcodes = model_->operator_codes();
@@ -655,6 +657,15 @@ TfLiteStatus ParseOpData(const Operator* op, BuiltinOperator op_type,
     case BuiltinOperator_ARG_MAX: {
       auto* params = MallocPOD<TfLiteArgMaxParams>();
       if (auto* schema_params = op->builtin_options_as_ArgMaxOptions()) {
+        ConvertTensorType(schema_params->output_type(), &params->output_type,
+                          error_reporter);
+      }
+      *builtin_data = reinterpret_cast<void*>(params);
+      break;
+    }
+    case BuiltinOperator_ARG_MIN: {
+      auto* params = MallocPOD<TfLiteArgMinParams>();
+      if (const auto* schema_params = op->builtin_options_as_ArgMinOptions()) {
         ConvertTensorType(schema_params->output_type(), &params->output_type,
                           error_reporter);
       }

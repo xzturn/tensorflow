@@ -150,7 +150,6 @@ load(
     "//third_party/mkl:build_defs.bzl",
     "if_mkl",
 )
-load("@io_bazel_rules_closure//closure:defs.bzl", "closure_proto_library")
 
 exports_files(["ops/ops.pbtxt"])
 
@@ -1923,7 +1922,6 @@ tf_proto_library_cc(
     srcs = ["protobuf/master_service.proto"],
     has_services = 1,
     cc_api_version = 2,
-    cc_grpc_version = 1,
     cc_stubby_versions = ["2"],
     protodeps = [":master_proto"],
     visibility = [

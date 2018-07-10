@@ -133,9 +133,9 @@ TEST_F(BFloat16PropagationTest, ConvertConstantLiteral) {
   array_b.FillUnique(10.0f);
 
   HloInstruction* a = builder.AddInstruction(
-      HloInstruction::CreateConstant(Literal::CreateFromArray(array_a)));
+      HloInstruction::CreateConstant(LiteralUtil::CreateFromArray(array_a)));
   HloInstruction* b = builder.AddInstruction(
-      HloInstruction::CreateConstant(Literal::CreateFromArray(array_b)));
+      HloInstruction::CreateConstant(LiteralUtil::CreateFromArray(array_b)));
   HloInstruction* dot = builder.AddInstruction(
       HloInstruction::CreateBinary(shape, HloOpcode::kDot, a, b));
 
@@ -150,10 +150,10 @@ TEST_F(BFloat16PropagationTest, ConvertConstantLiteral) {
   EXPECT_EQ(dot->operand(0)->opcode(), HloOpcode::kConstant);
   EXPECT_EQ(dot->operand(1)->opcode(), HloOpcode::kConstant);
   EXPECT_TRUE(LiteralTestUtil::Equal(
-      *Literal::ConvertF32ToBF16(*Literal::CreateFromArray(array_a)),
+      *LiteralUtil::ConvertF32ToBF16(*LiteralUtil::CreateFromArray(array_a)),
       dot->operand(0)->literal()));
   EXPECT_TRUE(LiteralTestUtil::Equal(
-      *Literal::ConvertF32ToBF16(*Literal::CreateFromArray(array_b)),
+      *LiteralUtil::ConvertF32ToBF16(*LiteralUtil::CreateFromArray(array_b)),
       dot->operand(1)->literal()));
 }
 
@@ -240,12 +240,10 @@ TEST_F(BFloat16PropagationTest, SameValueReferencedTwice) {
   EXPECT_TRUE(PropagatePrecision(module.get()));
 
   EXPECT_EQ(computation->root_instruction(), dot);
-  EXPECT_TRUE(OutputsBF16(add0));
   EXPECT_TRUE(OutputsBF16(add1));
   EXPECT_TRUE(OutputsBF16(lhs));
-  // rhs is a get-tuple-element, which does not define a buffer, but its shape
-  // should also be adjusted accordingly.
-  EXPECT_TRUE(OutputsBF16(rhs));
+
+  // add0 and rhs have been eliminated by simplification and DCE.
 }
 
 // Tests that a non-fusion computation's root should not be changed.
@@ -734,10 +732,8 @@ TEST_F(BFloat16PropagationTest, NoopConversionRemoved) {
   EXPECT_TRUE(PropagatePrecision(module.get()));
 
   EXPECT_EQ(computation->root_instruction(), add2);
-  EXPECT_EQ(add2->operand(0), gte0);
-  EXPECT_EQ(add2->operand(1), gte1);
-  EXPECT_EQ(gte0->shape().element_type(), BF16);
-  EXPECT_EQ(gte1->shape().element_type(), BF16);
+  EXPECT_EQ(add2->operand(0), add0);
+  EXPECT_EQ(add2->operand(1), add1);
   EXPECT_EQ(add0->shape().element_type(), BF16);
   EXPECT_EQ(add1->shape().element_type(), BF16);
 }
