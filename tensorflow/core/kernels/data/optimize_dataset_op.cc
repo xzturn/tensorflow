@@ -91,9 +91,7 @@ class OptimizeDatasetOp : public UnaryDatasetOpKernel {
       Graph graph(OpRegistry::Global());
       TF_RETURN_IF_ERROR(ImportGraphDef({}, graph_def, &graph, nullptr));
       std::vector<Tensor> outputs;
-      GraphRunner graph_runner(ctx->env());
-      // Once rewrites that add/modify functions are introduced, we will need
-      // persist the results in a function library runtime.
+      GraphRunner graph_runner(ctx->function_library()->device());
       TF_RETURN_IF_ERROR(graph_runner.Run(&graph, ctx->function_library(), {},
                                           {output_node}, &outputs));
       TF_RETURN_IF_ERROR(GetDatasetFromVariantTensor(outputs[0], &input_));
