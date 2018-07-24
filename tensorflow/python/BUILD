@@ -2822,7 +2822,6 @@ py_library(
         ":framework_ops",
         ":math_ops",
         ":resource_variable_ops",
-        ":resources",
         ":smart_cond",
         ":summary_op_util",
         ":summary_ops_gen",
@@ -3408,6 +3407,7 @@ py_test(
         ":math_ops",
         ":util",
         "//third_party/py/numpy",
+        "@absl_py//absl/testing:parameterized",
     ],
 )
 
