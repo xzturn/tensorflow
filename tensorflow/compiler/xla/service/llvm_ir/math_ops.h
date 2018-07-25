@@ -13,23 +13,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/contrib/tensorrt/convert/utils.h"
+#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_LLVM_IR_MATH_OPS_H_
+#define TENSORFLOW_COMPILER_XLA_SERVICE_LLVM_IR_MATH_OPS_H_
 
-namespace tensorflow {
-namespace tensorrt {
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Value.h"
 
-bool IsGoogleTensorRTEnabled() {
-  // TODO(laigd): consider also checking if tensorrt shared libraries are
-  // accessible. We can then direct users to this function to make sure they can
-  // safely write code that uses tensorrt conditionally. E.g. if it does not
-  // check for for tensorrt, and user mistakenly uses tensorrt, they will just
-  // crash and burn.
-#if GOOGLE_CUDA && GOOGLE_TENSORRT
-  return true;
-#else
-  return false;
-#endif
-}
+namespace xla {
+namespace llvm_ir {
 
-}  // namespace tensorrt
-}  // namespace tensorflow
+// Emits an approximation of tanh. The implementation uses the same rational
+// interpolant as implemented in Eigen3.
+llvm::Value* EmitFastTanh(llvm::IRBuilder<>* b, llvm::Value* input);
+
+}  // namespace llvm_ir
+}  // namespace xla
+
+#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_LLVM_IR_MATH_OPS_H_
