@@ -223,13 +223,12 @@ class HloAllReduceInstruction : public HloInstruction {
   explicit HloAllReduceInstruction(
       const Shape& shape, tensorflow::gtl::ArraySlice<HloInstruction*> operands,
       HloComputation* reduce_computation,
-      tensorflow::gtl::ArraySlice<int64> replica_group_ids,
+      const std::vector<ReplicaGroup>& replica_groups,
       tensorflow::StringPiece barrier,
       const absl::optional<int64>& all_reduce_id);
 
-  // Returns the group ids of each replica for CrossReplicaSum op.
-  const std::vector<int64>& replica_group_ids() const {
-    return replica_group_ids_;
+  const std::vector<ReplicaGroup>& replica_groups() const {
+    return replica_groups_;
   }
 
   // Returns the barrier config used for the CrossReplicaSum implementation of
@@ -260,8 +259,8 @@ class HloAllReduceInstruction : public HloInstruction {
       tensorflow::gtl::ArraySlice<HloInstruction*> new_operands,
       HloCloneContext* context) const override;
 
-  // The group id of each replica for CrossReplicaSum.
-  std::vector<int64> replica_group_ids_;
+  // The replica ids of each subgroup for CrossReplicaSum op.
+  std::vector<ReplicaGroup> replica_groups_;
 
   // The string representation of the barrier config used for CrossReplicaSum.
   string cross_replica_sum_barrier_;
@@ -276,19 +275,10 @@ class HloAllToAllInstruction : public HloInstruction {
  public:
   explicit HloAllToAllInstruction(
       const Shape& shape, tensorflow::gtl::ArraySlice<HloInstruction*> operand,
-      const std::vector<ReplicaGroup>& replica_groups,
-      tensorflow::StringPiece barrier);
+      const std::vector<ReplicaGroup>& replica_groups);
 
   const std::vector<ReplicaGroup>& replica_groups() const {
     return replica_groups_;
-  }
-
-  // TODO(b/110096724): rename this.
-  void set_cross_replica_sum_barrier(string barrier) {
-    cross_replica_sum_barrier_ = barrier;
-  }
-  string cross_replica_sum_barrier() const {
-    return cross_replica_sum_barrier_;
   }
 
   HloInstructionProto ToProto() const override;
@@ -308,9 +298,6 @@ class HloAllToAllInstruction : public HloInstruction {
       HloCloneContext* context) const override;
 
   std::vector<ReplicaGroup> replica_groups_;
-
-  // The string representation of the barrier config.
-  string cross_replica_sum_barrier_;
 };
 
 class HloReverseInstruction : public HloInstruction {
