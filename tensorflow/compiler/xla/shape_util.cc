@@ -41,15 +41,14 @@ limitations under the License.
 #include "tensorflow/core/lib/gtl/iterator_range.h"
 #include "tensorflow/core/lib/hash/hash.h"
 #include "tensorflow/core/lib/strings/numbers.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/protobuf.h"
 #include "tensorflow/core/platform/regexp.h"
 
 namespace xla {
 
-using ::absl::StrAppend;
-using ::absl::StrCat;
+using absl::StrAppend;
+using absl::StrCat;
 
 string ShapeIndex::ToString() const { return ShapeIndexView(*this).ToString(); }
 

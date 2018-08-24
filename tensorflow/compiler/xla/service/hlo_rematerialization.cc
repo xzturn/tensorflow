@@ -40,15 +40,13 @@ limitations under the License.
 #include "tensorflow/compiler/xla/statusor.h"
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/util.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/lib/strings/stringprintf.h"
 #include "tensorflow/core/platform/logging.h"
 
-using ::tensorflow::strings::HumanReadableNumBytes;
-
 namespace xla {
-
 namespace {
+
+using ::tensorflow::strings::HumanReadableNumBytes;
 
 // Potential optimizations:
 // . TODO(b/35244891): Avoid N^2 behavior by keeping a priority queue

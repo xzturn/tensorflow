@@ -33,13 +33,12 @@ limitations under the License.
 #include "tensorflow/compiler/xla/util.h"
 #include "tensorflow/core/lib/gtl/flatmap.h"
 #include "tensorflow/core/lib/gtl/flatset.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace xla {
 namespace {
 
-using ::absl::StrAppend;
+using absl::StrAppend;
 
 bool IsEntryParameterValue(const HloValue& value) {
   const HloComputation* computation = value.defining_instruction()->parent();

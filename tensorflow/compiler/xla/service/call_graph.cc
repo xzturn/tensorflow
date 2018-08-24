@@ -25,13 +25,12 @@ limitations under the License.
 #include "tensorflow/compiler/xla/util.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/core/status.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/lib/strings/stringprintf.h"
 #include "tensorflow/core/platform/types.h"
 
 namespace xla {
 
-using ::absl::StrCat;
+using absl::StrCat;
 using ::tensorflow::strings::Appendf;
 
 string CallContextToString(CallContext context) {

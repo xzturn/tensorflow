@@ -18,12 +18,11 @@ limitations under the License.
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 
 namespace xla {
 
-using ::absl::StrCat;
-using ::absl::StrJoin;
+using absl::StrCat;
+using absl::StrJoin;
 
 HloSharding HloSharding::AssignDevice(int64 device_id) {
   return HloSharding(device_id);

@@ -37,19 +37,17 @@ limitations under the License.
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/hash/hash.h"
 #include "tensorflow/core/lib/strings/numbers.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/lib/strings/stringprintf.h"
 
 namespace xla {
+namespace {
 
-using ::absl::StrAppend;
+using absl::StrAppend;
 using ::tensorflow::gtl::FlatMap;
 using ::tensorflow::gtl::FlatSet;
 using ::tensorflow::strings::Appendf;
 using ::tensorflow::strings::HumanReadableNumBytes;
 using ::tensorflow::strings::Printf;
-
-namespace {
 
 template <typename T>
 string ColocatedBufferSetsToString(const T& container, const char* title) {

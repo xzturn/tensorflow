@@ -31,7 +31,6 @@ limitations under the License.
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/util.h"
 #include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace xla {
@@ -79,8 +78,8 @@ bool MultiDynamicSliceUseShareSameIndices(
 
 }  // namespace
 
-using ::absl::StrAppend;
-using ::absl::StrCat;
+using absl::StrAppend;
+using absl::StrCat;
 
 HloDataflowAnalysis::HloDataflowAnalysis(
     const HloModule& module, bool ssa_form, bool bitcast_defines_value,

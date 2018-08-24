@@ -30,12 +30,11 @@ limitations under the License.
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/util.h"
 #include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/logging.h"
 
 namespace xla {
 
-using ::absl::StrAppend;
+using absl::StrAppend;
 
 // Data structure used to construct the alias analysis. Thrown away after alias
 // analysis is complete. This data structure keeps track of which sets of

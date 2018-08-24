@@ -24,14 +24,12 @@ limitations under the License.
 #include "tensorflow/compiler/xla/statusor.h"
 #include "tensorflow/compiler/xla/util.h"
 #include "tensorflow/core/lib/strings/numbers.h"
-#include "tensorflow/core/lib/strings/str_util.h"
 #include "tensorflow/core/platform/regexp.h"
 
 namespace xla {
-
-using ::absl::string_view;
-
 namespace {
+
+using absl::string_view;
 
 constexpr int kEOF = -1;
 constexpr int kError = -2;
