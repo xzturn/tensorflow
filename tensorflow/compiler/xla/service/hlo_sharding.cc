@@ -16,13 +16,14 @@ limitations under the License.
 #include "tensorflow/compiler/xla/service/hlo_sharding.h"
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/lib/strings/str_util.h"
 
 namespace xla {
 
 using ::absl::StrCat;
-using ::tensorflow::str_util::Join;
+using ::absl::StrJoin;
 
 HloSharding HloSharding::AssignDevice(int64 device_id) {
   return HloSharding(device_id);
@@ -72,12 +73,9 @@ HloSharding HloSharding::SingleTuple(const Shape& tuple_shape,
                                      const HloSharding& sharding) {
   CHECK(ShapeUtil::IsTuple(tuple_shape)) << ShapeUtil::HumanString(tuple_shape);
   CHECK(!sharding.IsTuple()) << sharding.ToString();
-  int64 leaf_count = ShapeUtil::GetLeafCount(tuple_shape);
+  int64 leaf_count = RequiredLeaves(tuple_shape);
   std::vector<HloSharding> flattened_list;
-  flattened_list.reserve(leaf_count);
-  for (int64 i = 0; i < leaf_count; ++i) {
-    flattened_list.push_back(sharding);
-  }
+  flattened_list.resize(leaf_count, sharding);
   return HloSharding(flattened_list);
 }
 
@@ -93,7 +91,7 @@ string HloSharding::ToString() const {
     for (const HloSharding& element : tuple_elements_) {
       parts.push_back(element.ToString());
     }
-    return StrCat("{", tensorflow::str_util::Join(parts, ", "), "}");
+    return StrCat("{", absl::StrJoin(parts, ", "), "}");
   }
 
   if (replicated_) {
@@ -102,8 +100,8 @@ string HloSharding::ToString() const {
     return StrCat(
         "{maximal device=", static_cast<int64>(*tile_assignment_.begin()), "}");
   } else {
-    return StrCat("{devices=[", Join(tile_assignment_.dimensions(), ","), "]",
-                  Join(tile_assignment_, ","), "}");
+    return StrCat("{devices=[", StrJoin(tile_assignment_.dimensions(), ","),
+                  "]", StrJoin(tile_assignment_, ","), "}");
   }
 }
 
@@ -446,7 +444,7 @@ absl::optional<HloSharding> HloSharding::ExtractSingleSharding() const {
   }
   for (int64 i = 1; i < tuple_elements_.size(); ++i) {
     if (tuple_elements_[0] != tuple_elements_[i]) {
-      return absl::optional<HloSharding>();
+      return absl::nullopt;
     }
   }
   return tuple_elements_.front();

@@ -20,6 +20,7 @@ limitations under the License.
 
 #include <vector>
 
+#include "absl/strings/str_join.h"
 #include "tensorflow/compiler/xla/test_helpers.h"
 #include "tensorflow/core/lib/io/path.h"
 #include "tensorflow/core/lib/strings/str_util.h"
@@ -80,7 +81,7 @@ TEST(LiteralTestUtilTest, ExpectNearFailurePlacesResultsInTemporaryDirectory) {
   std::vector<string> results;
   TF_CHECK_OK(env->GetMatchingPaths(pattern, &results));
 
-  LOG(INFO) << "results: [" << tensorflow::str_util::Join(results, ", ") << "]";
+  LOG(INFO) << "results: [" << absl::StrJoin(results, ", ") << "]";
   EXPECT_EQ(3, results.size());
   for (const string& result : results) {
     LiteralProto literal_proto;
@@ -105,8 +106,10 @@ TEST(LiteralTestUtilTest, NotEqualHasValuesInMessage) {
   auto actual = LiteralUtil::CreateR1<int32>({4, 5, 6});
   ::testing::AssertionResult result =
       LiteralTestUtil::Equal(*expected, *actual);
-  EXPECT_THAT(result.message(), ::testing::HasSubstr("expected: {1, 2, 3}"));
-  EXPECT_THAT(result.message(), ::testing::HasSubstr("actual:   {4, 5, 6}"));
+  EXPECT_THAT(result.message(),
+              ::testing::HasSubstr("Expected literal:\n{1, 2, 3}"));
+  EXPECT_THAT(result.message(),
+              ::testing::HasSubstr("Actual literal:\n{4, 5, 6}"));
 }
 
 TEST(LiteralTestUtilTest, NearComparatorR1) {
