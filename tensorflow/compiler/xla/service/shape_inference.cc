@@ -52,7 +52,7 @@ bool AllUnique(tensorflow::gtl::ArraySlice<int64> slice) {
 Status ExpectArray(const Shape& shape, absl::string_view op_type) {
   if (!ShapeUtil::IsArray(shape)) {
     return InvalidArgument("Expected array argument for %s, but got %s.",
-                           std::string(op_type), ShapeUtil::HumanString(shape));
+                           string(op_type), ShapeUtil::HumanString(shape));
   }
   return Status::OK();
 }
@@ -1842,6 +1842,12 @@ ShapeInference::InferDegenerateDimensionBroadcastShape(HloOpcode operation,
   }
 
   return InferVariadicOpShape(HloOpcode::kTuple, operand_shapes);
+}
+
+/* static */ StatusOr<Shape> ShapeInference::InferCollectivePermuteShape(
+    const Shape& shape) {
+  TF_RET_CHECK(ShapeUtil::IsArray(shape));
+  return shape;
 }
 
 /* static */ StatusOr<Shape> ShapeInference::InferReduceShape(
