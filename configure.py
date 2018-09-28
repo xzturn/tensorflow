@@ -1440,6 +1440,14 @@ def set_windows_build_flags(environ_cp):
   # TODO(pcloudy): Remove this flag when upgrading Bazel to 0.16.0
   # Short object file path will be enabled by default.
   write_to_bazelrc('build --experimental_shortened_obj_file_path=true')
+  # When building zip file for some py_binary and py_test targets, don't
+  # include its dependencies. This is for:
+  #   1. Running python tests against the system installed TF pip package.
+  #   2. Avoiding redundant files in
+  #      //tensorflow/tools/pip_package:simple_console_windows,
+  #      which is a py_binary used during creating TF pip package.
+  #      See https://github.com/tensorflow/tensorflow/issues/22390
+  write_to_bazelrc('build --define=no_tensorflow_py_deps=true')
 
   if get_var(
       environ_cp, 'TF_OVERRIDE_EIGEN_STRONG_INLINE', 'Eigen strong inline',
@@ -1532,6 +1540,13 @@ def main():
     else:
       set_trisycl_include_dir(environ_cp)
 
+  set_action_env_var(environ_cp, 'TF_NEED_ROCM', 'ROCm', False)
+  if (environ_cp.get('TF_NEED_ROCM') == '1' and
+      'LD_LIBRARY_PATH' in environ_cp and
+      environ_cp.get('LD_LIBRARY_PATH') != '1'):
+    write_action_env_to_bazelrc('LD_LIBRARY_PATH',
+                                environ_cp.get('LD_LIBRARY_PATH'))
+
   set_action_env_var(environ_cp, 'TF_NEED_CUDA', 'CUDA', False)
   if (environ_cp.get('TF_NEED_CUDA') == '1' and
       'TF_CUDA_CONFIG_REPO' not in environ_cp):
@@ -1572,6 +1587,19 @@ def main():
       write_to_bazelrc('build --config=download_clang')
       write_to_bazelrc('test --config=download_clang')
 
+  # SYCL / ROCm / CUDA are mutually exclusive.
+  # At most 1 GPU platform can be configured.
+  gpu_platform_count = 0
+  if environ_cp.get('TF_NEED_OPENCL_SYCL') == '1':
+    gpu_platform_count += 1
+  if environ_cp.get('TF_NEED_ROCM') == '1':
+    gpu_platform_count += 1
+  if environ_cp.get('TF_NEED_CUDA') == '1':
+    gpu_platform_count += 1
+  if gpu_platform_count >= 2:
+    raise UserInputError('SYCL / CUDA / ROCm are mututally exclusive. '
+                         'At most 1 GPU platform can be configured.')
+
   set_build_var(environ_cp, 'TF_NEED_MPI', 'MPI', 'with_mpi_support', False)
   if environ_cp.get('TF_NEED_MPI') == '1':
     set_mpi_home(environ_cp)
@@ -1603,7 +1631,7 @@ def main():
     config_info_line('monolithic', 'Config for mostly static monolithic build.')
     config_info_line('gdr', 'Build with GDR support.')
     config_info_line('verbs', 'Build with libverbs support.')
-    config_info_line('ngraph', 'Build with Intel ngraph support.')
+    config_info_line('ngraph', 'Build with Intel nGraph support.')
 
 
 if __name__ == '__main__':

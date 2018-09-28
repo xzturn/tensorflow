@@ -1,6 +1,7 @@
 # TensorFlow external dependencies that can be loaded in WORKSPACE files.
 
 load("//third_party/gpus:cuda_configure.bzl", "cuda_configure")
+load("//third_party/gpus:rocm_configure.bzl", "rocm_configure")
 load("//third_party/tensorrt:tensorrt_configure.bzl", "tensorrt_configure")
 load("//third_party:nccl/nccl_configure.bzl", "nccl_configure")
 load("//third_party/mkl:build_defs.bzl", "mkl_repository")
@@ -20,9 +21,11 @@ load(
     "def_file_filter_configure",
 )
 load("//third_party/flatbuffers:workspace.bzl", flatbuffers = "repo")
+load("//third_party/icu:workspace.bzl", icu = "repo")
 
 def initialize_third_party():
     flatbuffers()
+    icu()
 
 # Sanitize a dependency so that it works correctly from code that includes
 # TensorFlow as a submodule.
@@ -43,6 +46,7 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
     sycl_configure(name = "local_config_sycl")
     syslibs_configure(name = "local_config_syslibs")
     python_configure(name = "local_config_python")
+    rocm_configure(name = "local_config_rocm")
 
     initialize_third_party()
 
@@ -858,11 +862,11 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
     tf_http_archive(
         name = "ngraph",
         urls = [
-            "https://mirror.bazel.build/github.com/NervanaSystems/ngraph/archive/v0.8.0.tar.gz",
-            "https://github.com/NervanaSystems/ngraph/archive/v0.8.0.tar.gz",
+            "https://mirror.bazel.build/github.com/NervanaSystems/ngraph/archive/v0.8.1.tar.gz",
+            "https://github.com/NervanaSystems/ngraph/archive/v0.8.1.tar.gz",
         ],
-        sha256 = "a8cf3ef2d0e6d31b54eb33f6a9e795f562195ce5c2a857e729ca9c35241cc45c",
-        strip_prefix = "ngraph-0.8.0",
+        sha256 = "bf9dcc88e5c66021e3aac80491a231711211540d613bf9b6bd28db3f5bb86b62",
+        strip_prefix = "ngraph-0.8.1",
         build_file = clean_dep("//third_party/ngraph:ngraph.BUILD"),
     )
 
@@ -880,11 +884,11 @@ def tf_workspace(path_prefix = "", tf_repo_name = ""):
     tf_http_archive(
         name = "ngraph_tf",
         urls = [
-            "https://mirror.bazel.build/github.com/NervanaSystems/ngraph-tf/archive/v0.6.0.tar.gz",
-            "https://github.com/NervanaSystems/ngraph-tf/archive/v0.6.0.tar.gz",
+            "https://mirror.bazel.build/github.com/NervanaSystems/ngraph-tf/archive/v0.6.1.tar.gz",
+            "https://github.com/NervanaSystems/ngraph-tf/archive/v0.6.1.tar.gz",
         ],
-        sha256 = "1f49391c02bef24872e9f85591e60e0e7eef12a337db71390444118049fe451f",
-        strip_prefix = "ngraph-tf-0.6.0",
+        sha256 = "402f84c748c113780a60f35f39aab118435285543aee4900d712b76fbf8a21ee",
+        strip_prefix = "ngraph-tf-0.6.1",
         build_file = clean_dep("//third_party/ngraph:ngraph_tf.BUILD"),
     )
 

@@ -2341,7 +2341,7 @@ class FeatureTransformationCache(object):
       # Input_tensor must have rank 1.
       if isinstance(input_tensor, sparse_tensor_lib.SparseTensor):
         return sparse_ops.sparse_reshape(
-            input_tensor, [array_ops.shape(input_tensor)[0], -1])
+            input_tensor, [array_ops.shape(input_tensor)[0], 1])
       else:
         return array_ops.expand_dims(input_tensor, -1)
 
@@ -3447,11 +3447,9 @@ def _safe_embedding_lookup_sparse(embedding_weights,
     raise ValueError('Missing embedding_weights %s.' % embedding_weights)
 
   dtype = sparse_weights.dtype if sparse_weights is not None else None
-  if not isinstance(embedding_weights[0],
-                    resource_variable_ops.ResourceVariable):
-    embedding_weights = [
-        ops.convert_to_tensor(w, dtype=dtype) for w in embedding_weights
-    ]
+  embedding_weights = [
+      ops.convert_to_tensor(w, dtype=dtype) for w in embedding_weights
+  ]
 
   with ops.name_scope(name, 'embedding_lookup',
                       embedding_weights + [sparse_ids,
