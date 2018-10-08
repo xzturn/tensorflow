@@ -239,7 +239,6 @@ tf_proto_library(
     srcs = [],
     cc_api_version = 2,
     default_header = True,
-    java_api_version = 2,
     js_api_version = 2,
     protodeps = [
         ":protos_all_proto",
@@ -270,6 +269,12 @@ proto_library(
         "example/feature.proto",
     ],
     visibility = ["//visibility:public"],
+)
+
+java_proto_library(
+    name = "example_java_proto",
+    visibility = ["//visibility:public"],
+    deps = [":example_protos"],
 )
 
 closure_proto_library(
@@ -1237,6 +1242,7 @@ cc_library(
     srcs = [
         "ops/math_grad.cc",
         "ops/random_grad.cc",
+        "ops/stateless_random_grad.cc",
     ],
     linkstatic = 1,  # Needed since alwayslink is broken in bazel b/27630669
     visibility = ["//visibility:public"],
@@ -2385,7 +2391,6 @@ tf_proto_library(
     srcs = ERROR_CODES_PROTO_SRCS,
     cc_api_version = 2,
     default_header = True,
-    java_api_version = 2,
     js_api_version = 2,
     provide_cc_alias = True,
 )
@@ -2406,7 +2411,6 @@ tf_proto_library(
     srcs = COMMON_PROTO_SRCS + ADDITIONAL_CORE_PROTO_SRCS,
     cc_api_version = 2,
     default_header = True,
-    java_api_version = 2,
     js_api_version = 2,
     protodeps = [
         ":error_codes_proto",
@@ -3747,7 +3751,7 @@ tf_cc_tests_gpu(
 
 tf_cc_tests_gpu(
     name = "hierarchical_tree_broadcaster_test",
-    size = "small",
+    size = "medium",
     srcs = [
         "common_runtime/hierarchical_tree_broadcaster_test.cc",
     ],
