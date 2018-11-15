@@ -27,6 +27,7 @@ from tensorflow.contrib.distribute.python import shared_variable_creator
 from tensorflow.contrib.distribute.python import values
 from tensorflow.python import pywrap_tensorflow
 from tensorflow.python.distribute import multi_worker_util
+from tensorflow.python.distribute import reduce_util
 from tensorflow.python.eager import context
 from tensorflow.python.eager import tape
 from tensorflow.python.framework import constant_op
@@ -178,7 +179,7 @@ def _call_for_each_replica(distribution, fn, args, kwargs):
   return values.regroup({t.device: t.main_result for t in threads})
 
 
-def _reduce_non_distributed_value(distribution, aggregation, value,
+def _reduce_non_distributed_value(distribution, reduce_op, value,
                                   destinations):
   """Reduce a non-DistributedValue `value` to `destinations`."""
   if isinstance(value, values.DistributedValues):
@@ -190,21 +191,20 @@ def _reduce_non_distributed_value(distribution, aggregation, value,
   # and equal to 0.
   if value == 0:
     return 0
-  # If the aggregation type is MEAN or ONLY_FIRST_REPLICA, then this
+  # If the reduce op is MEAN or ONLY_FIRST_REPLICA, then this
   # essentially means that the same value should be on all destinations.
-  if aggregation in (
-      variable_scope.VariableAggregation.MEAN,
-      variable_scope.VariableAggregation.ONLY_FIRST_REPLICA):
+  if reduce_op in (reduce_util.ReduceOp.MEAN,
+                   reduce_util.ReduceOp.ONLY_FIRST_REPLICA):
     return value
 
   cross_tower_ops_lib.validate_destinations(destinations)
-  # We do not support an aggregation type of SUM if the value is the same across
+  # We do not support a reduce op of SUM if the value is the same across
   # all replicas. We call this as part of assign functions for MirroredVariables
   # and summing up identical values across replicas is not clearly defined.
   if (len(distribution.worker_devices) != 1 or
       not cross_tower_ops_lib.check_destinations(destinations)):
     raise ValueError("A non-DistributedValues value %s cannot be reduced with "
-                     "the given aggregation %s." % (value, aggregation))
+                     "the given reduce op %s." % (value, reduce_op))
   # TODO(anjalisridhar): Moves these methods to a device utility file?
   devices = cross_tower_ops_lib.get_devices_from(destinations)
   if len(devices) == 1:
@@ -588,35 +588,33 @@ class MirroredStrategy(distribute_lib.DistributionStrategy):
           cross_tower_ops_lib.ReductionToOneDeviceCrossDeviceOps())
     return self._cross_tower_ops
 
-  def _reduce(self, aggregation, value, destinations):
+  def _reduce(self, reduce_op, value, destinations):
     assert not isinstance(value, values.Mirrored)
     if not isinstance(value, values.DistributedValues):
       # This function handles reducing values that are not PerReplica or
       # Mirrored values. For example, the same value could be present on all
       # replicas in which case `value` would be a single value or value could
       # be 0.
-      return _reduce_non_distributed_value(self, aggregation, value,
+      return _reduce_non_distributed_value(self, reduce_op, value,
                                            destinations)
-    if aggregation == variable_scope.VariableAggregation.ONLY_FIRST_REPLICA:
+    if reduce_op == reduce_util.ReduceOp.ONLY_FIRST_REPLICA:
       value = value.get(self._devices[0])
       if isinstance(value, (int, float)):
         return value
       return self.broadcast(value, destinations)
     return self._get_cross_tower_ops().reduce(
-        aggregation, value, destinations=destinations)
+        reduce_op, value, destinations=destinations)
 
-  def _batch_reduce(self, aggregation, value_destination_pairs):
-    if aggregation == variable_scope.VariableAggregation.ONLY_FIRST_REPLICA:
+  def _batch_reduce(self, reduce_op, value_destination_pairs):
+    if reduce_op == reduce_util.ReduceOp.ONLY_FIRST_REPLICA:
       return [self.broadcast(v.get(self._devices[0]), d)
               for v, d in value_destination_pairs]
-    return self._get_cross_tower_ops().batch_reduce(aggregation,
+    return self._get_cross_tower_ops().batch_reduce(reduce_op,
                                                     value_destination_pairs)
 
-  def _update(self, var, options, fn, *args, **kwargs):
+  def _update(self, var, fn, args, kwargs, group):
     # TODO(josh11b): In eager mode, use one thread per device.
     assert isinstance(var, values.DistributedVariable)
-    should_group = options.pop("grouped")
-    assert not options  # Validate that we are processing all of the options.
     updates = {}
     for d, v in var._index.items():  # pylint: disable=protected-access
       name = "update_%d" % self._device_index.get(d)
@@ -625,12 +623,10 @@ class MirroredStrategy(distribute_lib.DistributionStrategy):
         updates[d] = fn(v,
                         *values.select_device_mirrored(d, args),
                         **values.select_device_mirrored(d, kwargs))
-    return values.update_regroup(self, updates, should_group)
+    return values.update_regroup(self, updates, group)
 
-  def _update_non_slot(self, colocate_with, options, fn, *args, **kwargs):
+  def _update_non_slot(self, colocate_with, fn, args, kwargs, group):
     assert isinstance(colocate_with, list)
-    should_group = options.pop("grouped")
-    assert not options  # Validate that we are processing all of the options.
     # TODO(josh11b): In eager mode, use one thread per device.
     updates = {}
     for d in colocate_with:
@@ -638,7 +634,7 @@ class MirroredStrategy(distribute_lib.DistributionStrategy):
       with ops.device(d), distribute_lib.UpdateContext(d), ops.name_scope(name):
         updates[d] = fn(*values.select_device_mirrored(d, args),
                         **values.select_device_mirrored(d, kwargs))
-    return values.update_regroup(self, updates, should_group)
+    return values.update_regroup(self, updates, group)
 
   def read_var(self, replica_local_var):
     """Read the aggregate value of a replica-local variable."""

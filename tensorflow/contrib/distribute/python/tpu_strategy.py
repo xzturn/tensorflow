@@ -31,6 +31,7 @@ from tensorflow.contrib.tpu.python.tpu import tpu_system_metadata as tpu_system_
 from tensorflow.contrib.tpu.python.tpu import training_loop
 from tensorflow.python.data.experimental.ops import batching
 from tensorflow.python.data.ops import dataset_ops
+from tensorflow.python.distribute import reduce_util
 from tensorflow.python.eager import context
 from tensorflow.python.eager import tape
 from tensorflow.python.framework import constant_op
@@ -439,12 +440,12 @@ class TPUStrategy(distribute_lib.DistributionStrategy):
     return _create_tpu_mirrored_variable(devices, _real_mirrored_creator, *args,
                                          **kwargs)
 
-  def _reduce(self, aggregation, value, destinations):
+  def _reduce(self, reduce_op, value, destinations):
     if values._enclosing_tpu_context() is not None:  # pylint: disable=protected-access
-      if aggregation == vs.VariableAggregation.MEAN:
+      if reduce_op == reduce_util.ReduceOp.MEAN:
         # TODO(jhseu):  Revisit once we support model-parallelism.
         value *= (1. / self.num_replicas_in_sync)
-      elif aggregation != vs.VariableAggregation.SUM:
+      elif reduce_op != reduce_util.ReduceOp.SUM:
         raise NotImplementedError(
             "Currently only support sum & mean in TPUStrategy.")
       return tpu_ops.cross_replica_sum(value)
@@ -459,20 +460,17 @@ class TPUStrategy(distribute_lib.DistributionStrategy):
     else:
       raise ValueError("Multiple devices are not supported for TPUStrategy")
 
-    if aggregation == vs.VariableAggregation.ONLY_FIRST_REPLICA:
+    if reduce_op == reduce_util.ReduceOp.ONLY_FIRST_REPLICA:
       return value[0]
     output = math_ops.add_n(value)
-    if aggregation == vs.VariableAggregation.MEAN:
+    if reduce_op == reduce_util.ReduceOp.MEAN:
       return output * (1. / len(value))
     return output
 
-  def _update(self, var, options, fn, *args, **kwargs):
+  def _update(self, var, fn, args, kwargs, group):
     assert isinstance(var, values.TPUMirroredVariable)
-    should_group = options.pop("grouped")
-    assert not options  # Validate that we are processing all of the options.
-
     if values._enclosing_tpu_context() is not None:  # pylint: disable=protected-access
-      if should_group:
+      if group:
         return fn(var, *args, **kwargs)
       else:
         return [fn(var, *args, **kwargs)]
@@ -487,9 +485,7 @@ class TPUStrategy(distribute_lib.DistributionStrategy):
         updates[d] = fn(v,
                         *values.select_device_mirrored(d, args),
                         **values.select_device_mirrored(d, kwargs))
-    return values.update_regroup(self, updates, should_group)
-
-  # TODO(josh11b): Need to implement _update_non_slot()!
+    return values.update_regroup(self, updates, group)
 
   def read_var(self, var):
     assert isinstance(var, values.TPUMirroredVariable)
@@ -552,14 +548,12 @@ class TPUStrategy(distribute_lib.DistributionStrategy):
   def non_slot_devices(self, var_list):
     return self._host_device
 
-  def _update_non_slot(self, colocate_with, options, fn, *args, **kwargs):
+  def _update_non_slot(self, colocate_with, fn, args, kwargs, group):
     del colocate_with
-    should_group = options.pop("grouped")
-    assert not options  # Validate that we are processing all of the options.
     with ops.device(self._host_device), distribute_lib.UpdateContext(
         self._host_device):
       result = fn(*args, **kwargs)
-      if should_group:
+      if group:
         return result
       else:
         return nest.map_structure(self._unwrap, result)
