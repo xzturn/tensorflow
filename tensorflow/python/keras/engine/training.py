@@ -971,13 +971,13 @@ class Model(Network):
         x = x.batch(batch_size, drop_remainder=drop_remainder)
 
     assert isinstance(x, dataset_ops.Dataset)
-    if self._distribution_strategy.__class__.__name__ == 'TPUStrategy':
-      iterator = self._distribution_strategy.make_dataset_iterator(x)
-    else:
-      dataset = self._distribution_strategy.distribute_dataset(lambda: x)
-      iterator = dataset.make_initializable_iterator()
 
     with self._distribution_strategy.scope():
+      if type(self._distribution_strategy).__name__ == 'TPUStrategy':
+        iterator = self._distribution_strategy.make_dataset_iterator(x)
+      else:
+        dataset = self._distribution_strategy.distribute_dataset(lambda: x)
+        iterator = dataset.make_initializable_iterator()
       K.get_session().run(iterator.initializer)
 
     training_utils.validate_iterator_input(x, y, sample_weight,
@@ -1284,7 +1284,9 @@ class Model(Network):
       y = training_utils.standardize_input_data(
           y,
           feed_output_names,
-          feed_output_shapes,
+          # Don't enforce target shapes to match output shapes.
+          # Precise checks will be run in `check_loss_and_target_compatibility`.
+          shapes=None,
           check_batch_axis=False,  # Don't enforce the batch size.
           exception_prefix='target')
 
