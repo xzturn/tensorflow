@@ -4,7 +4,6 @@
 TENSORFLOW_API_INIT_FILES = [
     # BEGIN GENERATED FILES
     "__init__.py",
-    "app/__init__.py",
     "bitwise/__init__.py",
     "compat/__init__.py",
     "data/__init__.py",
@@ -15,6 +14,7 @@ TENSORFLOW_API_INIT_FILES = [
     "experimental/__init__.py",
     "feature_column/__init__.py",
     "gfile/__init__.py",
+    "io/gfile/__init__.py",
     "graph_util/__init__.py",
     "image/__init__.py",
     "io/__init__.py",

@@ -1,4 +1,4 @@
-/* Copyright 2017 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2018 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,20 +13,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/lite/core/subgraph.h"
+#include "tensorflow/core/common_runtime/tf_xla_stub.h"
 
-namespace tflite {
-
-Subgraph::~Subgraph() {
-  for (auto& node_and_reg : nodes_and_registration_) {
-    TfLiteNode& node = node_and_reg.first;
-    TfLiteIntArrayFree(node.inputs);
-    TfLiteIntArrayFree(node.outputs);
-    TfLiteIntArrayFree(node.temporaries);
-    if (node.builtin_data) free(node.builtin_data);
-    OpFree(node_and_reg.second, node.user_data);
-    node.builtin_data = nullptr;
-  }
+namespace tensorflow {
+namespace {
+XlaGpuJitIsLinkedIn register_xla_gpu_jit;
 }
-
-}  // namespace tflite
+}  // namespace tensorflow
