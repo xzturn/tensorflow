@@ -190,10 +190,6 @@ cc_library(
 xla_test(
     name = "sorting_test",
     srcs = ["sorting_test.cc"],
-    blacklisted_backends = [
-        "cpu",
-        "gpu",
-    ],
     tags = ["enable_for_xla_interpreter"],
     deps = [
         ":sorting",
