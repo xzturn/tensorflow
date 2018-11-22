@@ -381,9 +381,13 @@ def validate_inputs(x, y, distribution_strategy):
 
   if is_tpu_strategy(distribution_strategy):
     for i in [x, y]:
-      if isinstance(i, dataset_ops.Dataset):
+      if isinstance(i, dataset_ops.DatasetV2):
         shapes = nest.flatten(i.output_shapes)
-        if any([not s.is_fully_defined() for s in shapes]):
+        try:
+          s = next(s for s in shapes if not s.is_fully_defined())
+        except StopIteration:
+          continue
+        else:
           raise ValueError(
               'Using TPUs currently requires fully defined shapes. Either use '
               'set_shape() on the input tensors or use '
