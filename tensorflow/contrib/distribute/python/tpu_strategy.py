@@ -21,6 +21,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import copy
 import functools
 
 from tensorflow.contrib.tpu.python.ops import tpu_ops
@@ -28,6 +29,8 @@ from tensorflow.contrib.tpu.python.tpu import tpu
 from tensorflow.contrib.tpu.python.tpu import tpu_system_metadata as tpu_system_metadata_lib
 from tensorflow.contrib.tpu.python.tpu import training_loop
 from tensorflow.python.distribute import cross_device_ops as cross_device_ops_lib
+from tensorflow.python.distribute import device_util
+from tensorflow.python.distribute import distribute_lib
 from tensorflow.python.distribute import reduce_util
 from tensorflow.python.distribute import values
 from tensorflow.python.eager import context
@@ -40,8 +43,6 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import math_ops
 from tensorflow.python.ops import variable_scope as vs
-from tensorflow.python.training import device_util
-from tensorflow.python.training import distribute as distribute_lib
 from tensorflow.python.util import nest
 
 
@@ -539,10 +540,15 @@ class TPUExtended(distribute_lib.DistributionStrategyExtended):
                  task_id=None):
     del cluster_spec, task_type, task_id
     if session_config:
-      session_config.isolate_session_state = True
-      cluster_spec = self._tpu_cluster_resolver.cluster_spec()
-      if cluster_spec:
-        session_config.cluster_def.CopyFrom(cluster_spec.as_cluster_def())
+      session_config.CopyFrom(self._update_config_proto(session_config))
+
+  def _update_config_proto(self, config_proto):
+    updated_config = copy.deepcopy(config_proto)
+    updated_config.isolate_session_state = True
+    cluster_spec = self._tpu_cluster_resolver.cluster_spec()
+    if cluster_spec:
+      updated_config.cluster_def.CopyFrom(cluster_spec.as_cluster_def())
+    return updated_config
 
   # TODO(priyag): Delete this once all strategies use global batch size.
   @property
