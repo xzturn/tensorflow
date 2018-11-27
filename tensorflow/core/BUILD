@@ -95,7 +95,7 @@ load("//tensorflow:tensorflow.bzl", "tf_cc_test_gpu")
 load("//tensorflow:tensorflow.bzl", "tf_cc_tests_gpu")
 load("//tensorflow:tensorflow.bzl", "tf_cuda_cc_test")
 load("//tensorflow:tensorflow.bzl", "tf_version_info_genrule")
-load("//tensorflow:tensorflow.bzl", "if_not_tx2_llvm_or_windows_cuda")
+load("//tensorflow:tensorflow.bzl", "if_nccl")
 load("//tensorflow:tensorflow.bzl", "tf_cuda_only_cc_test")
 
 # For platform specific build config
@@ -112,6 +112,7 @@ load(
     "tf_additional_device_tracer_test_flags",
     "tf_additional_gdr_lib_defines",
     "tf_additional_human_readable_json_deps",
+    "tf_additional_logger_deps",
     "tf_additional_lib_defines",
     "tf_additional_lib_deps",
     "tf_additional_lib_hdrs",
@@ -441,6 +442,18 @@ cc_library(
         ":lib",
         ":lib_internal",
     ] + tf_additional_human_readable_json_deps(),
+)
+
+cc_library(
+    name = "logger",
+    srcs = tf_platform_srcs(["logger.cc"]),
+    hdrs = ["platform/logger.h"] + tf_platform_hdrs(["logger.h"]),
+    copts = tf_copts(),
+    visibility = ["//visibility:public"],
+    deps = [
+        ":lib",
+        ":lib_internal",
+    ] + tf_additional_logger_deps(),
 )
 
 filegroup(
@@ -1403,9 +1416,7 @@ cc_library(
         "//tensorflow/core/kernels:summary_kernels",
         "//tensorflow/core/kernels:training_ops",
         "//tensorflow/core/kernels:word2vec_kernels",
-    ] + tf_additional_cloud_kernel_deps() + if_not_tx2_llvm_or_windows_cuda([
-        "//tensorflow/core/kernels:nccl_kernels",
-    ]) + if_not_windows([
+    ] + tf_additional_cloud_kernel_deps() + if_not_windows([
         "//tensorflow/core/kernels:fact_op",
         "//tensorflow/core/kernels:array_not_windows",
         "//tensorflow/core/kernels:math_not_windows",
@@ -1430,6 +1441,8 @@ cc_library(
     ]) + if_cuda([
         "//tensorflow/core/grappler/optimizers:gpu_swapping_kernels",
         "//tensorflow/core/grappler/optimizers:gpu_swapping_ops",
+    ]) + if_nccl([
+        "//tensorflow/core/kernels:nccl_kernels",
     ]),
 )
 
@@ -1594,6 +1607,8 @@ filegroup(
             "util/stats_calculator.*",
             "util/reporter.*",
             "platform/**/cuda_libdevice_path.*",
+            "platform/**/logger.cc",
+            "platform/**/logger.h",
             "platform/default/test_benchmark.*",
             "platform/cuda.h",
             "platform/google/**/*",
@@ -2206,6 +2221,7 @@ cc_library(
             "platform/**/env_time.cc",
             "platform/**/cuda_libdevice_path.cc",
             "platform/**/device_tracer.cc",
+            "platform/**/logger.cc",
             "platform/**/logging.cc",
             "platform/**/human_readable_json.cc",
             "platform/abi.cc",
@@ -2218,6 +2234,7 @@ cc_library(
             "platform/**/stream_executor.h",
             "platform/**/env_time.cc",
             "platform/**/device_tracer.cc",
+            "platform/**/logger.cc",
             "platform/**/logging.cc",
             "platform/**/human_readable_json.cc",
             "platform/abi.cc",
