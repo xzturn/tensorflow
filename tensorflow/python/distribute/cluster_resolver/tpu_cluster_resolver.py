@@ -197,13 +197,14 @@ class TPUClusterResolver(ClusterResolver):
     elif tpu == 'local' or not tpu:
       # Google environment, where the TPU is attached to the host.
       self._environment = 'google'
-    elif tpu.startswith('/bns'):
+    elif tpu.startswith('/bns') or tpu.startswith('uptc://'):
       # Google environment, where we reach the TPU through BNS.
       self._environment = 'google'
 
     # If TPU is in the Google environment or exists locally, we don't use any
     # RPC layer.
-    if tpu.startswith('/bns') or tpu == 'local' or not tpu:
+    if tpu.startswith('/bns') or tpu.startswith(
+        'uptc://') or tpu == 'local' or not tpu:
       self.rpc_layer = None
     else:
       self.rpc_layer = 'grpc'
@@ -386,17 +387,30 @@ class TPUClusterResolver(ClusterResolver):
 
     return server_lib.ClusterSpec(cluster_spec)
 
-  def num_accelerators_per_worker(self, session_config=None):
+  def num_accelerators(self,
+                       task_type=None,
+                       task_index=None,
+                       accelerator_type='TPU',
+                       config_proto=None):
     """Returns the number of TPU cores per worker.
 
     This defaults to 8 for all current TPU configurations, and we do not need
     to query any remote systems for this.
 
     Args:
-      session_config: Unused. Not currently necessary to query anything as this
-        number is 8 for all TPU configurations.
+      task_type: Unused.
+      task_index: Unused.
+      accelerator_type: Unused.
+      config_proto: Unused.
+
+    Raises:
+      RuntimeError: If this is used with a non-TPU accelerator_type.
     """
-    del session_config  # Unused. Not necessary to query anything.
+    # Unused. Not necessary to query anything.
+    del task_type, task_index, config_proto
+
+    if accelerator_type != 'TPU':
+      raise ValueError('This Cluster Resolver is only compatible with TPUs.')
     return 8
 
   @property
