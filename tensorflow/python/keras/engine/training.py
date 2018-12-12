@@ -40,6 +40,7 @@ from tensorflow.python.keras.engine import training_eager
 from tensorflow.python.keras.engine import training_generator
 from tensorflow.python.keras.engine import training_utils
 from tensorflow.python.keras.engine.network import Network
+from tensorflow.python.keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.keras.utils import data_utils
 from tensorflow.python.keras.utils.generic_utils import slice_arrays
 from tensorflow.python.keras.utils.losses_utils import squeeze_or_expand_dimensions
@@ -143,12 +144,11 @@ class Model(Network):
 
     Arguments:
         optimizer: String (name of optimizer) or optimizer instance.
-            See [optimizers](/api_docs/python/tf/keras/optimizers).
+            See `tf.keras.optimizers`.
         loss: String (name of objective function) or objective function.
-            See [losses](/api_docs/python/tf/losses).
-            If the model has multiple outputs, you can use a different loss
-            on each output by passing a dictionary or a list of losses.
-            The loss value that will be minimized by the model
+            See `tf.losses`. If the model has multiple outputs, you can use a
+            different loss on each output by passing a dictionary or a list of
+            losses. The loss value that will be minimized by the model
             will then be the sum of all individual losses.
         metrics: List of metrics to be evaluated by the model
             during training and testing.
@@ -195,8 +195,9 @@ class Model(Network):
     # Validate that arguments passed by the user to `compile` are supported by
     # DistributionStrategy.
     if distribute:
-      if not isinstance(
-          optimizer, (tf_optimizer_module.Optimizer, optimizers.TFOptimizer)):
+      if not isinstance(optimizer,
+                        (tf_optimizer_module.Optimizer, optimizers.TFOptimizer,
+                         optimizer_v2.OptimizerV2)):
         raise NotImplementedError(
             'optimizer must be an instance of '
             'tf.train.Optimizer, not a %s' % type(optimizer))
@@ -627,7 +628,7 @@ class Model(Network):
             0 = silent, 1 = progress bar, 2 = one line per epoch.
         callbacks: List of `keras.callbacks.Callback` instances.
             List of callbacks to apply during training.
-            See [callbacks](/api_docs/python/tf/keras/callbacks).
+            See `tf.keras.callbacks`.
         validation_split: Float between 0 and 1.
             Fraction of the training data to be used as validation data.
             The model will set apart this fraction of the training data,
