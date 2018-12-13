@@ -466,6 +466,7 @@ py_test(
     name = "normalization_test",
     size = "medium",
     srcs = ["layers/normalization_test.py"],
+    shard_count = 3,
     srcs_version = "PY2AND3",
     tags = ["notsan"],
     deps = [
@@ -524,8 +525,9 @@ py_test(
 
 py_test(
     name = "recurrent_test",
-    size = "large",
+    size = "medium",
     srcs = ["layers/recurrent_test.py"],
+    shard_count = 4,
     srcs_version = "PY2AND3",
     deps = [
         ":keras",
