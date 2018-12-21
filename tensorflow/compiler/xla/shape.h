@@ -21,6 +21,7 @@ limitations under the License.
 
 #include "absl/types/optional.h"
 #include "tensorflow/compiler/xla/layout.h"
+#include "tensorflow/compiler/xla/primitive_util.h"
 #include "tensorflow/compiler/xla/types.h"
 #include "tensorflow/compiler/xla/xla_data.pb.h"
 #include "tensorflow/core/platform/types.h"
@@ -43,6 +44,19 @@ class Shape {
   // Returns a human-readable string that represents the given shape, with or
   // without layout. e.g. "F32[42,12] {0, 1}" or "F32[64]".
   string ToString(bool print_layout = false) const;
+
+  // Returns the rank (number of dimensions) of the given shape. Shape must be
+  // an array.
+  int64 rank() const {
+    CHECK(IsArray()) << "Non-arrays do not have a rank, shape: " << ToString();
+    return dimensions_.size();
+  }
+
+  // Returns whether the shape is of the specified type (array, tuple, etc).
+  bool IsArray() const { return primitive_util::IsArrayType(element_type()); }
+  bool IsTuple() const { return element_type() == TUPLE; }
+  bool IsToken() const { return element_type() == TOKEN; }
+  bool IsOpaque() const { return element_type() == OPAQUE; }
 
   // The following methods mirror the protobuf generated code interface for the
   // message ShapeProto. This enabled easy migration of this data structure

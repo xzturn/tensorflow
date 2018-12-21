@@ -13,22 +13,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/core/platform/logger.h"
+#include "tensorflow/c/eager/c_api_experimental.h"
 
-#include "tensorflow/core/platform/logging.h"
+#include "tensorflow/c/c_api.h"
+#include "tensorflow/c/eager/c_api_internal.h"
 
-namespace tensorflow {
-
-Logger* Logger::Singleton() {
-  class DefaultLogger : public Logger {
-   private:
-    void DoLogProto(google::protobuf::Any* proto) override {
-      VLOG(2) << proto->ShortDebugString();
-    }
-    void DoFlush() override {}
-  };
-  static Logger* instance = new DefaultLogger();
-  return instance;
+void TFE_OpConsumeInput(TFE_Op* op, TFE_TensorHandle* h, TF_Status* status) {
+  op->operation.ConsumeInput(h->handle);
 }
-
-}  // namespace tensorflow
