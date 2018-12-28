@@ -172,9 +172,9 @@ cuda_py_test(
 
 py_test(
     name = "optimizer_v2_test",
-    size = "large",
+    size = "medium",
     srcs = ["optimizer_v2_test.py"],
-    shard_count = 4,
+    shard_count = 8,
     tags = [
         "no_windows",
     ],
@@ -201,6 +201,7 @@ cuda_py_test(
     srcs = ["rmsprop_test.py"],
     additional_deps = [
         ":optimizer_v2",
+        "@absl_py//absl/testing:parameterized",
         "//tensorflow/python/eager:def_function",
         "//tensorflow/python:client_testlib",
         "//tensorflow/python:framework",
