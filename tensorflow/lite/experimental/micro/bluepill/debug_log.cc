@@ -13,25 +13,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#if GOOGLE_CUDA
+#include "tensorflow/lite/experimental/micro/debug_log.h"
 
-#include "tensorflow/core/common_runtime/gpu/gpu_device_kernel_check.h"
-#include "tensorflow/stream_executor/cuda/cuda_activation.h"
-
-namespace {
-__global__ void test_kernel(float* val) {
-  if (blockIdx.x == 0 && threadIdx.x == 0) {
-    (*val) = 12345.;
-  }
+// For Arm Cortex-M devices, calling SYS_WRITE0 will output the zero-terminated
+// string pointed to by R1 to any debug console that's attached to the system.
+extern "C" void DebugLog(const char* s) {
+  asm("mov r0, #0x04\n"  // SYS_WRITE0
+      "mov r1, %[str]\n"
+      "bkpt #0xAB\n"
+      :
+      : [ str ] "r"(s)
+      : "r0", "r1");
 }
-}  // namespace
-
-namespace tensorflow {
-
-void run_test_kernel(float* val, cudaStream_t cu_stream) {
-  test_kernel<<<1, 1, 0, cu_stream>>>(val);
-}
-
-}  // namespace tensorflow
-
-#endif  // GOOGLE_CUDA

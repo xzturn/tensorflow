@@ -13,20 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_CORE_COMMON_RUNTIME_GPU_GPU_DEVICE_KERNEL_CHECK_H_
-#define TENSORFLOW_CORE_COMMON_RUNTIME_GPU_GPU_DEVICE_KERNEL_CHECK_H_
+#include "tensorflow/lite/experimental/micro/examples/micro_speech/timer.h"
 
-#if GOOGLE_CUDA
+namespace {
+int32_t g_current_time = 0;
+}
 
-#include "tensorflow/core/platform/stream_executor.h"
+void SetTimeInMilliseconds(int32_t time) { g_current_time = time; }
 
-namespace tensorflow {
-
-// Runs a GPU kernel to test that it functions correctly. Sets 'val' to 12345.
-void run_test_kernel(float* val, cudaStream_t cu_stream);
-
-}  // namespace tensorflow
-
-#endif  // GOOGLE_CUDA
-
-#endif  // TENSORFLOW_CORE_COMMON_RUNTIME_GPU_GPU_DEVICE_KERNEL_CHECK_H_
+int32_t TimeInMilliseconds() { return g_current_time; }
