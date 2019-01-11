@@ -40,6 +40,7 @@ from tensorflow.python.keras.engine import training_generator
 from tensorflow.python.keras.engine import training_utils
 from tensorflow.python.keras.engine.network import Network
 from tensorflow.python.keras.optimizer_v2 import optimizer_v2
+from tensorflow.python.keras.saving import saving_utils
 from tensorflow.python.keras.utils import data_utils
 from tensorflow.python.keras.utils.generic_utils import slice_arrays
 from tensorflow.python.keras.utils.losses_utils import squeeze_or_expand_dimensions
@@ -216,14 +217,14 @@ class Model(Network):
       self._distribution_strategy = distribute
       self._compile_distribution = True
     else:
-      if distribution_strategy_context.has_distribution_strategy():
+      if distribution_strategy_context.has_strategy():
         # When the user builds the model in the DS scope and cross replica
         # context we want distribution strategy to be set but when building the
         # replica copies of the models internally we should not be compiling
         # with distribution strategy and use the default compilation path.
         if distribution_strategy_context.in_cross_replica_context():
           self._distribution_strategy = (
-              distribution_strategy_context.get_distribution_strategy())
+              distribution_strategy_context.get_strategy())
 
     # Validate that arguments passed by the user to `compile` are supported by
     # DistributionStrategy.
@@ -1702,7 +1703,7 @@ class Model(Network):
 
   @property
   def _default_save_signature(self):
-    return training_utils.trace_model_call(self)
+    return saving_utils.trace_model_call(self)
 
   def _set_sample_weight_attributes(self, sample_weight_mode,
                                     skip_target_weighing_indices):
