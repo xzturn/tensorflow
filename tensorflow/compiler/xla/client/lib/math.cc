@@ -136,37 +136,30 @@ XlaOp Erf(XlaOp x) {
 //   }
 //   return p*x
 XlaOp ErfInv(XlaOp x) {
-  XlaBuilder* b = x.builder();
-  return b->ReportErrorOrReturn([&]() -> StatusOr<XlaOp> {
-    TF_ASSIGN_OR_RETURN(Shape shape, b->GetShape(x));
-    constexpr int kDegree = 9;
-    constexpr std::array<float, 9> w_less_than_5_constants = {
-        2.81022636e-08f,  3.43273939e-07f, -3.5233877e-06f,
-        -4.39150654e-06f, 0.00021858087f,  -0.00125372503f,
-        -0.00417768164f,  0.246640727f,    1.50140941f};
-    constexpr std::array<float, 9> w_greater_than_5_constants = {
-        -0.000200214257f, 0.000100950558f, 0.00134934322f,
-        -0.00367342844f,  0.00573950773f,  -0.0076224613f,
-        0.00943887047f,   1.00167406f,     2.83297682f};
+  constexpr int kDegree = 9;
+  constexpr std::array<float, 9> w_less_than_5_constants = {
+      2.81022636e-08f,  3.43273939e-07f, -3.5233877e-06f,
+      -4.39150654e-06f, 0.00021858087f,  -0.00125372503f,
+      -0.00417768164f,  0.246640727f,    1.50140941f};
+  constexpr std::array<float, 9> w_greater_than_5_constants = {
+      -0.000200214257f, 0.000100950558f, 0.00134934322f,
+      -0.00367342844f,  0.00573950773f,  -0.0076224613f,
+      0.00943887047f,   1.00167406f,     2.83297682f};
 
-    auto one = ScalarLike(x, 1.0);
-    auto w = -Log((one - x) * (one + x));
+  auto one = ScalarLike(x, 1.0);
+  auto w = -Log((one - x) * (one + x));
 
-    auto lt = Lt(w, ScalarLike(x, 5.0));
-    auto coefficient = [&](int i) {
-      return Select(lt,
-                    Broadcast(ScalarLike(x, w_less_than_5_constants[i]),
-                              AsInt64Slice(shape.dimensions())),
-                    Broadcast(ScalarLike(x, w_greater_than_5_constants[i]),
-                              AsInt64Slice(shape.dimensions())));
-    };
-    w = Select(lt, w - ScalarLike(x, 2.5), Sqrt(w) - ScalarLike(x, 3.0));
-    auto p = coefficient(0);
-    for (int i = 1; i < kDegree; ++i) {
-      p = coefficient(i) + p * w;
-    }
-    return p * x;
-  });
+  auto lt = Lt(w, ScalarLike(x, 5.0));
+  auto coefficient = [&](int i) {
+    return Select(lt, FullLike(x, w_less_than_5_constants[i]),
+                  FullLike(x, w_greater_than_5_constants[i]));
+  };
+  w = Select(lt, w - ScalarLike(x, 2.5), Sqrt(w) - ScalarLike(x, 3.0));
+  auto p = coefficient(0);
+  for (int i = 1; i < kDegree; ++i) {
+    p = coefficient(i) + p * w;
+  }
+  return p * x;
 }
 
 namespace {
@@ -242,12 +235,44 @@ XlaOp Lgamma(XlaOp input) {
 
     XlaOp log_y = log_sqrt_two_pi + (z + one_half) * log_t - t + Log(x);
 
-    // If z = a + 0j, the analytic continuation of log reduces to taking the
-    // absolute value of the real part.
-    // Re(log(z)) = Re(log|z| + arg(z)j)
-    //            = log|a|
-    XlaOp reflection = log_pi - Log(Abs(Sin(pi * input))) - log_y;
-    return Select(need_to_reflect, reflection, log_y);
+    // Compute the reflected value, used when x < 0.5:
+    //
+    //   lgamma(x) = log(pi) - lgamma(1-x) - log(abs(sin(pi * x))).
+    //
+    // (The abs is because lgamma is the log of the absolute value of the gamma
+    // function.)
+    //
+    // We have to be careful when computing the final term above. gamma(x) goes
+    // to +/-inf at every integer x < 0, and this is controlled by the
+    // sin(pi * x) term.  The slope is large, so precision is particularly
+    // important.
+    //
+    // Because abs(sin(pi * x)) has period 1, we can equivalently use
+    // abs(sin(pi * frac(x))) = sin(pi * frac(x)), where frac(x) is the
+    // fractional part of x.  This is more numerically accurate: It doesn't
+    // overflow to inf like pi * x can, and if x is an integer, it evaluates to
+    // 0 exactly, which is significant because we then take the log of this
+    // value, and log(0) is inf.
+    //
+    // We don't have a frac(x) primitive in XLA and computing it is tricky, but
+    // because abs(sin(pi * x)) = abs(sin(pi * abs(x))), it's good enough for
+    // our purposes to use abs(frac(x)) = abs(x) - floor(abs(x)).
+    //
+    XlaOp abs_input = Abs(input);
+    XlaOp reflection_denom = Log(Sin(pi * (abs_input - Floor(abs_input))));
+
+    // Avoid computing -inf - inf, which is nan.  If reflection_denom is +/-inf,
+    // then it "wins" and the result is +/-inf.
+    XlaOp reflection =
+        Select(IsFinite(reflection_denom), log_pi - reflection_denom - log_y,
+               -reflection_denom);
+    XlaOp result = Select(need_to_reflect, reflection, log_y);
+
+    // lgamma(+/-inf) = +inf.
+    XlaOp inf_bcast = FullLike(input, std::numeric_limits<float>::infinity());
+    return Select(Or(IsFinite(input),                           // is finite, or
+                     Not(Or(Lt(input, one), Ge(input, one)))),  // is nan
+                  result, inf_bcast);
   });
 }
 
