@@ -105,17 +105,14 @@ class RestoredFunction(def_function.Function):
     super(RestoredFunction, self).__init__(
         python_function, name, autograph=False)
     self._concrete_functions = concrete_functions
-    # TODO(vbardiovsky): This does not propagate to stateful and stateless
-    # functions of the RestoredFunction, which will have seen only defunned
-    # restored_function_body(*args, **kwargs). Therefore get_concrete_function()
-    # called on RestoredFunction will not work properly.
+    # This does not propagate to stateful and stateless functions of the
+    # RestoredFunction, which will have seen only defunned
+    # restored_function_body(*args, **kwargs). That's why we have to
+    # canonicalize inputs inside restored_function_body.
     self._function_spec = function_spec
 
   def _list_all_concrete_functions_for_serialization(self):
     return self._concrete_functions
-
-  def get_concrete_function(self, *args, **kwargs):
-    raise NotImplementedError()
 
 
 def recreate_function(saved_function, concrete_functions):
@@ -281,6 +278,12 @@ def _fix_fdef(orig_fdef, functions):
     for _, attr_value in node_def.attr.items():
       if attr_value.func.name:
         attr_value.func.name = functions[attr_value.func.name].name
+
+    # TODO(b/124205571): Avoid accidental sharing and destruction of restored
+    # resources. For now drop "shared_name" when loading functions to avoid
+    # sharing.
+    if "shared_name" in node_def.attr:
+      del node_def.attr["shared_name"]
 
   fdef.signature.name = _clean_function_name(fdef.signature.name)
   return fdef
