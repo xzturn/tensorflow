@@ -529,6 +529,19 @@ class FunctionTest(test.TestCase, parameterized.TestCase):
     var_t = resource_variable_ops.read_variable_op(var_handle, dtype=v.dtype)
     self.assertEqual(var_t.shape, tensor_shape.TensorShape([2, 2]))
 
+  def testShapeInferenceForMoreSpecificInput(self):
+    self.skipTest('b/124219898')
+
+    def f(a):
+      return array_ops.reshape(a, [-1, 3])
+
+    signature = [tensor_spec.TensorSpec(None, dtypes.float32)]
+    compiled = def_function.function(f, input_signature=signature)
+
+    with ops.Graph().as_default():
+      inputs = array_ops.zeros([10, 10, 3])
+      self.assertAllEqual(f(inputs).shape, compiled(inputs).shape)
+
   def testFuncListAttr(self):
 
     @function.defun
@@ -876,8 +889,9 @@ class FunctionTest(test.TestCase, parameterized.TestCase):
       return None
 
     with self.assertRaisesRegexp(
-        errors.InvalidArgumentError, 'Could not colocate node with its '
-        'resource and reference inputs.*'):
+        errors.InvalidArgumentError,
+        'Cannot place the graph because a reference or resource edge connects '
+        'colocation groups with incompatible assigned devices'):
       if not context.executing_eagerly():
         self.evaluate(variables.global_variables_initializer())
       self.evaluate(resource_apply_adam())
@@ -1959,14 +1973,10 @@ class FunctionTest(test.TestCase, parameterized.TestCase):
       graph_function('Not a Tensor.')
 
   def testSwapImplementationWithGrapplerPlugin(self):
+    # Set the min_graph_nodes to -1 since the graph in this test is too small,
+    # and will be ignored by grappler if don't set this.
     rewrites = rewriter_config_pb2.RewriterConfig()
-    # function_optimizer has to be turn off, otherwise it will delete the
-    # registered function if it does not get called.
-    # TODO(scottzhu): Move the ImplementationSelector to be called
-    # before function_optimizer in future.
-    rewrites.function_optimization = rewriter_config_pb2.RewriterConfig.OFF
-    customer_optimizer = rewrites.custom_optimizers.add()
-    customer_optimizer.name = 'ImplementationSelector'
+    rewrites.implementation_selector = rewriter_config_pb2.RewriterConfig.ON
     rewrites.min_graph_nodes = -1
     graph_options = config_pb2.GraphOptions(
         rewrite_options=rewrites, build_cost_model=1)
