@@ -33,6 +33,8 @@ from tensorflow.python.util import tf_decorator
 from tensorflow.python.util import tf_inspect
 from tensorflow.python.util.tf_export import tf_export
 
+NO_MODULE_NAME_SCOPE = "__no_module_name_scope__"
+
 
 class ModuleMetaclass(abc.ABCMeta):
   """Metaclass for `tf.Module`."""
@@ -47,10 +49,6 @@ class ModuleMetaclass(abc.ABCMeta):
         continue
 
       elif tf_inspect.isfunction(value):
-        if getattr(value, "_no_module_name_scope", False):
-          # The function has been annotated to say that no autoscoping should
-          # be applied, so do not patch it.
-          continue
         clsdict[key] = with_name_scope(value)
 
       elif isinstance(value, property):
@@ -139,6 +137,11 @@ def wrap_with_name_scope_no_exception(unbound_method):
 
 def with_name_scope(unbound_method):
   """Patches the given method so it enters the modules name scope."""
+  if getattr(unbound_method, NO_MODULE_NAME_SCOPE, False):
+    # The function has been annotated to say that no autoscoping should be
+    # applied, so do not patch it.
+    return unbound_method
+
   if isinstance(unbound_method, def_function.Function):
     # Autograph cannot convert functions that have try/catch.
     unbound_method._decorate(wrap_with_name_scope_no_exception)  # pylint: disable=protected-access
@@ -357,7 +360,7 @@ class Module(six.with_metaclass(ModuleMetaclass, tracking.AutoTrackable)):
     Returns:
       The method, with a flag indicating no name scope wrapping should occur.
     """
-    setattr(method, "_no_module_name_scope", True)
+    setattr(method, NO_MODULE_NAME_SCOPE, True)
     return method
 
 _IS_VARIABLE = lambda o: isinstance(o, variables.Variable)
