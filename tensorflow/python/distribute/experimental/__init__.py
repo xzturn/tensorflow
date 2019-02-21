@@ -1,4 +1,4 @@
-# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2017 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Convenience functions to save a model.
-"""
+"""Experimental Distribution Strategy library."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-
 # pylint: disable=unused-import
-from tensorflow.python.saved_model import builder
-from tensorflow.python.saved_model import constants
-from tensorflow.python.saved_model import loader
-from tensorflow.python.saved_model import main_op
-from tensorflow.python.saved_model import signature_constants
-from tensorflow.python.saved_model import signature_def_utils
-from tensorflow.python.saved_model import tag_constants
-from tensorflow.python.saved_model import utils
-from tensorflow.python.saved_model.load import load
-from tensorflow.python.saved_model.save import save
+from tensorflow.python.distribute import collective_all_reduce_strategy
+from tensorflow.python.distribute import parameter_server_strategy
 # pylint: enable=unused-import
-# pylint: disable=wildcard-import
-from tensorflow.python.saved_model.simple_save import *
-# pylint: enable=wildcard-import

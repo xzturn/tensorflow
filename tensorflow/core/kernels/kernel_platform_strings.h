@@ -1,4 +1,4 @@
-/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2018 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,16 +13,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#if GOOGLE_CUDA
+// Generate platform strings for libtfkernel-*
 
-#include "tensorflow/core/kernels/cwise_ops_gpu_common.cu.h"
+#ifndef TENSORFLOW_CORE_KERNELS_KERNEL_PLATFORM_STRINGS_H_
+#define TENSORFLOW_CORE_KERNELS_KERNEL_PLATFORM_STRINGS_H_
 
-namespace tensorflow {
-namespace functor {
-DEFINE_BINARY11(mul, Eigen::half, float, double, uint8, int8, uint16, int16,
-                int32, int64, complex64, complex128);
-DEFINE_BINARY2(mul_no_nan, float, double);
-}  // namespace functor
-}  // namespace tensorflow
+#include "tensorflow/core/platform/platform_strings.h"
 
-#endif  // GOOGLE_CUDA
+TF_PLATFORM_STRINGS()
+
+#endif  // TENSORFLOW_CORE_KERNELS_KERNEL_PLATFORM_STRINGS_H_

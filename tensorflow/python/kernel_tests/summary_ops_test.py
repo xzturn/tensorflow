@@ -20,8 +20,13 @@ from __future__ import print_function
 
 import os
 import time
+import unittest
 
+from tensorflow.core.framework import graph_pb2
+from tensorflow.core.framework import node_def_pb2
+from tensorflow.core.framework import step_stats_pb2
 from tensorflow.core.framework import summary_pb2
+from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.util import event_pb2
 from tensorflow.python.eager import context
 from tensorflow.python.eager import def_function
@@ -39,7 +44,7 @@ from tensorflow.python.platform import gfile
 from tensorflow.python.platform import test
 
 
-class SummaryOpsTest(test_util.TensorFlowTestCase):
+class SummaryOpsCoreTest(test_util.TensorFlowTestCase):
 
   def testWrite(self):
     logdir = self.get_temp_dir()
@@ -414,6 +419,170 @@ class SummaryWriterTest(test_util.TensorFlowTestCase):
     logdir = self.get_temp_dir()
     with summary_ops.create_file_writer(logdir).as_default():
       summary_ops.write('tag', 1, step=0)
+
+  def testClose_closesOpenFile(self):
+    try:
+      import psutil  # pylint: disable=g-import-not-at-top
+    except ImportError:
+      raise unittest.SkipTest('test requires psutil')
+    proc = psutil.Process()
+    get_open_filenames = lambda: set(info[0] for info in proc.open_files())
+    logdir = self.get_temp_dir()
+    with context.eager_mode():
+      writer = summary_ops.create_file_writer(logdir)
+      files = gfile.Glob(os.path.join(logdir, '*'))
+      self.assertEqual(1, len(files))
+      eventfile = files[0]
+      self.assertIn(eventfile, get_open_filenames())
+      writer.close()
+      self.assertNotIn(eventfile, get_open_filenames())
+
+  def testDereference_closesOpenFile(self):
+    try:
+      import psutil  # pylint: disable=g-import-not-at-top
+    except ImportError:
+      raise unittest.SkipTest('test requires psutil')
+    proc = psutil.Process()
+    get_open_filenames = lambda: set(info[0] for info in proc.open_files())
+    logdir = self.get_temp_dir()
+    with context.eager_mode():
+      writer = summary_ops.create_file_writer(logdir)
+      files = gfile.Glob(os.path.join(logdir, '*'))
+      self.assertEqual(1, len(files))
+      eventfile = files[0]
+      self.assertIn(eventfile, get_open_filenames())
+      del writer
+      self.assertNotIn(eventfile, get_open_filenames())
+
+
+class SummaryOpsTest(test_util.TensorFlowTestCase):
+
+  def run_metadata(self, *args, **kwargs):
+    assert context.executing_eagerly()
+    logdir = self.get_temp_dir()
+    writer = summary_ops.create_file_writer(logdir)
+    with writer.as_default():
+      summary_ops.run_metadata(*args, **kwargs)
+    writer.close()
+    events = events_from_logdir(logdir)
+    return events[1].summary
+
+  def run_metadata_graphs(self, *args, **kwargs):
+    assert context.executing_eagerly()
+    logdir = self.get_temp_dir()
+    writer = summary_ops.create_file_writer(logdir)
+    with writer.as_default():
+      summary_ops.run_metadata_graphs(*args, **kwargs)
+    writer.close()
+    events = events_from_logdir(logdir)
+    return events[1].summary
+
+  def create_run_metadata(self):
+    step_stats = step_stats_pb2.StepStats(dev_stats=[
+        step_stats_pb2.DeviceStepStats(
+            device='cpu:0',
+            node_stats=[step_stats_pb2.NodeExecStats(node_name='hello')])
+    ])
+    return config_pb2.RunMetadata(
+        function_graphs=[
+            config_pb2.RunMetadata.FunctionGraphs(
+                pre_optimization_graph=graph_pb2.GraphDef(
+                    node=[node_def_pb2.NodeDef(name='foo')]))
+        ],
+        step_stats=step_stats)
+
+  @test_util.run_v2_only
+  def testRunMetadata_usesNameAsTag(self):
+    meta = config_pb2.RunMetadata()
+
+    with ops.name_scope('foo'):
+      summary = self.run_metadata(name='my_name', data=meta, step=1)
+      first_val = summary.value[0]
+
+    self.assertEqual('foo/my_name', first_val.tag)
+
+  @test_util.run_v2_only
+  def testRunMetadata_summaryMetadata(self):
+    expected_summary_metadata = """
+      plugin_data {
+        plugin_name: "graph_run_metadata"
+        content: "1"
+      }
+    """
+    meta = config_pb2.RunMetadata()
+    summary = self.run_metadata(name='my_name', data=meta, step=1)
+    actual_summary_metadata = summary.value[0].metadata
+    self.assertProtoEquals(expected_summary_metadata, actual_summary_metadata)
+
+  @test_util.run_v2_only
+  def testRunMetadata_wholeRunMetadata(self):
+    expected_run_metadata = """
+      step_stats {
+        dev_stats {
+          device: "cpu:0"
+          node_stats {
+            node_name: "hello"
+          }
+        }
+      }
+      function_graphs {
+        pre_optimization_graph {
+          node {
+            name: "foo"
+          }
+        }
+      }
+    """
+    meta = self.create_run_metadata()
+    summary = self.run_metadata(name='my_name', data=meta, step=1)
+    first_val = summary.value[0]
+
+    actual_run_metadata = config_pb2.RunMetadata.FromString(
+        first_val.tensor.string_val[0])
+    self.assertProtoEquals(expected_run_metadata, actual_run_metadata)
+
+  @test_util.run_v2_only
+  def testRunMetadataGraph_usesNameAsTag(self):
+    meta = config_pb2.RunMetadata()
+
+    with ops.name_scope('foo'):
+      summary = self.run_metadata_graphs(name='my_name', data=meta, step=1)
+      first_val = summary.value[0]
+
+    self.assertEqual('foo/my_name', first_val.tag)
+
+  @test_util.run_v2_only
+  def testRunMetadataGraph_summaryMetadata(self):
+    expected_summary_metadata = """
+      plugin_data {
+        plugin_name: "graph_run_metadata_graph"
+        content: "1"
+      }
+    """
+    meta = config_pb2.RunMetadata()
+    summary = self.run_metadata_graphs(name='my_name', data=meta, step=1)
+    actual_summary_metadata = summary.value[0].metadata
+    self.assertProtoEquals(expected_summary_metadata, actual_summary_metadata)
+
+  @test_util.run_v2_only
+  def testRunMetadataGraph_runMetadataFragment(self):
+    expected_run_metadata = """
+      function_graphs {
+        pre_optimization_graph {
+          node {
+            name: "foo"
+          }
+        }
+      }
+    """
+    meta = self.create_run_metadata()
+
+    summary = self.run_metadata_graphs(name='my_name', data=meta, step=1)
+    first_val = summary.value[0]
+
+    actual_run_metadata = config_pb2.RunMetadata.FromString(
+        first_val.tensor.string_val[0])
+    self.assertProtoEquals(expected_run_metadata, actual_run_metadata)
 
 
 def events_from_file(filepath):
