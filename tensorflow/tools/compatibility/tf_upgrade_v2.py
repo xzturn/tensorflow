@@ -225,6 +225,14 @@ class TFAPIChangeSpec(ast_edits.APIChangeSpec):
         "tf.nn.max_pool": {
             "value": "input"
         },
+
+        "tf.nn.avg_pool": {
+            "value": "input"
+        },
+
+        "tf.nn.avg_pool2d": {
+            "value": "input"
+        },
         "tf.multinomial": {
             "output_dtype": "dtype",
         },
@@ -560,6 +568,16 @@ class TFAPIChangeSpec(ast_edits.APIChangeSpec):
             "tf.data.experimental.unbatch",
         "tf.contrib.data.unique":
             "tf.data.experimental.unique",
+        "tf.contrib.estimator.make_early_stopping_hook":
+            "tf.estimator.experimental.make_early_stopping_hook",
+        "tf.contrib.estimator.stop_if_higher_hook":
+            "tf.estimator.experimental.stop_if_higher_hook",
+        "tf.contrib.estimator.stop_if_lower_hook":
+            "tf.estimator.experimental.stop_if_lower_hook",
+        "tf.contrib.estimator.stop_if_no_decrease_hook":
+            "tf.estimator.experimental.stop_if_no_decrease_hook",
+        "tf.contrib.estimator.stop_if_no_increase_hook":
+            "tf.estimator.experimental.stop_if_no_increase_hook",
         "tf.contrib.framework.CriticalSection":
             "tf.CriticalSection",
         "tf.contrib.framework.is_tensor":
@@ -584,6 +602,16 @@ class TFAPIChangeSpec(ast_edits.APIChangeSpec):
             "tf.nn.rnn_cell.RNNCell",
         "tf.contrib.rnn.LSTMStateTuple":
             "tf.nn.rnn_cell.LSTMStateTuple",
+        "tf.contrib.rnn.BasicLSTMCell":
+            "tf.compat.v1.nn.rnn_cell.BasicLSTMCell",
+        "tf.contrib.rnn.BasicRNNCell":
+            "tf.compat.v1.nn.rnn_cell.BasicRNNCell",
+        "tf.contrib.rnn.GRUCell":
+            "tf.compat.v1.nn.rnn_cell.GRUCell",
+        "tf.contrib.rnn.LSTMCell":
+            "tf.compat.v1.nn.rnn_cell.LSTMCell",
+        "tf.contrib.rnn.MultiRNNCell":
+            "tf.compat.v1.nn.rnn_cell.MultiRNNCell",
         "tf.contrib.framework.sort":
             "tf.sort",
         "tf.contrib.framework.argsort":
@@ -736,6 +764,8 @@ class TFAPIChangeSpec(ast_edits.APIChangeSpec):
             "tf.compat.v1.assert_rank",
         "tf.nn.max_pool":
             "tf.nn.max_pool2d",
+        "tf.nn.avg_pool":
+            "tf.nn.avg_pool2d",
         "tf.keras.initializers.zeros":
             "tf.compat.v1.keras.initializers.zeros",
         "tf.keras.initializers.ones":
@@ -858,6 +888,7 @@ class TFAPIChangeSpec(ast_edits.APIChangeSpec):
         "tf.gradients",
         "tf.hessians",
         "tf.nn.max_pool",
+        "tf.nn.avg_pool",
     }
 
     # Manual mapping of function names to be reordered to their list of argument
