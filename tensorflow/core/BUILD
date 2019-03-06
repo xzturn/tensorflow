@@ -1671,6 +1671,7 @@ filegroup(
         ":protos_all_proto_text_srcs",
         ":error_codes_proto_text_srcs",
         "//tensorflow/core/platform/default/build_config:android_srcs",
+        "//tensorflow/c:srcs",
     ] + glob(
         [
             "client/**/*.cc",
@@ -2170,6 +2171,18 @@ tf_proto_library(
     srcs = ["protobuf/autotuning.proto"],
     cc_api_version = 2,
     default_header = True,
+    provide_cc_alias = True,
+    visibility = [
+        "//tensorflow:internal",
+    ],
+)
+
+tf_proto_library(
+    name = "conv_autotuning_proto",
+    srcs = ["protobuf/conv_autotuning.proto"],
+    cc_api_version = 2,
+    default_header = True,
+    protodeps = tf_additional_all_protos(),
     provide_cc_alias = True,
     visibility = [
         "//tensorflow:internal",
