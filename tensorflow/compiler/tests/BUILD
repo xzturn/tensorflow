@@ -482,7 +482,7 @@ tf_xla_py_test(
     name = "fft_test",
     size = "medium",
     srcs = ["fft_test.py"],
-    shard_count = 3,
+    shard_count = 6,
     tags = ["optonly"],
     deps = [
         ":xla_test",
@@ -892,7 +892,7 @@ tf_xla_py_test(
 
 tf_xla_py_test(
     name = "tensor_array_ops_test",
-    size = "small",
+    size = "medium",
     srcs = ["tensor_array_ops_test.py"],
     # TensorArray ops are not implemented in the on-demand compilation model yet.
     disabled_backends = ["cpu_ondemand"],

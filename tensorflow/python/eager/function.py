@@ -397,7 +397,7 @@ class _EagerDefinedFunction(object):
           "Arguments and signature arguments do not match: %s %s " %
           (len(args), len(list(self.signature.input_arg))))
 
-    function_call_options = ctx.get_function_call_options()
+    function_call_options = ctx.function_call_options
     if function_call_options.config_proto_serialized is None:
       config = function_utils.get_disabled_rewriter_config()
     else:
@@ -735,7 +735,7 @@ class ConcreteFunction(object):
     # In case of eager execution, function definition gets added to context
     # during construction itself.
 
-    # TODO(allel/shivaniagrawal): rename this to register to reflect the
+    # TODO(allenl/shivaniagrawal): rename this to register to reflect the
     # method's functionality better. Remove register_gradient_functions argument
     # and figure out if these needs to be registered.
 
