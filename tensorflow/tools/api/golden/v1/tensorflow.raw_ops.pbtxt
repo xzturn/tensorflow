@@ -2182,7 +2182,7 @@ tf_module {
   }
   member_method {
     name: "OptimizeDataset"
-    argspec: "args=[\'input_dataset\', \'optimizations\', \'output_types\', \'output_shapes\', \'name\'], varargs=None, keywords=None, defaults=[\'None\'], "
+    argspec: "args=[\'input_dataset\', \'optimizations\', \'output_types\', \'output_shapes\', \'optimization_configs\', \'name\'], varargs=None, keywords=None, defaults=[\'[]\', \'None\'], "
   }
   member_method {
     name: "OptionalFromValue"
@@ -2443,6 +2443,10 @@ tf_module {
   member_method {
     name: "QuantizedConv2DAndRequantize"
     argspec: "args=[\'input\', \'filter\', \'min_input\', \'max_input\', \'min_filter\', \'max_filter\', \'min_freezed_output\', \'max_freezed_output\', \'strides\', \'padding\', \'out_type\', \'dilations\', \'padding_list\', \'name\'], varargs=None, keywords=None, defaults=[\"<dtype: \'qint8\'>\", \'[1, 1, 1, 1]\', \'[]\', \'None\'], "
+  }
+  member_method {
+    name: "QuantizedConv2DPerChannel"
+    argspec: "args=[\'input\', \'filter\', \'min_input\', \'max_input\', \'min_filter\', \'max_filter\', \'strides\', \'padding\', \'out_type\', \'dilations\', \'name\'], varargs=None, keywords=None, defaults=[\"<dtype: \'qint32\'>\", \'[1, 1, 1, 1]\', \'None\'], "
   }
   member_method {
     name: "QuantizedConv2DWithBias"

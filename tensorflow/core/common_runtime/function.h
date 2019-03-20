@@ -180,8 +180,8 @@ struct InlineFunctionBodyOptions {
   // This is mostly for compatibility with Tensorflow v1 and sessions. When we
   // prepare a graph for execution in GraphExecutionState::MakeForBaseGraph we
   // don't know what nodes will be fetched, so we can't safely remove any of
-  // them. When graph executed as a function it has 'Retval' nodes for each
-  // fetched tensor, and we can safely inline function calls.
+  // them. When graph executed as a function it has 'Retval' nodes for all
+  // fetched tensors, and we can safely inline function calls.
   bool keep_caller_fetchable = false;
   // For compatibility with Tensorflow v1 by default we will use data outputs.
   // Control returns were added to Tensorflow v2 with automatic control
@@ -276,6 +276,12 @@ bool ExpandInlineFunctions(FunctionLibraryRuntime* lib, Graph* graph,
 inline bool ExpandInlineFunctions(FunctionLibraryRuntime* lib, Graph* graph) {
   return ExpandInlineFunctions(lib, graph, ExpandInlineFunctionsOptions());
 }
+
+// Extracts function name and attributes from `call_def`
+// `call_def` can be a native function call (where the op type is the function
+// name) or a call through PartitionedCall/StatefulPartitionedCall.
+Status NameAndAttrsFromFunctionCall(const NodeDef& call_def,
+                                    NameAttrList* function);
 
 // Extracts function name and attributes from `call_def` and invokes
 // flr->Instantiate(name, attrs, handle).

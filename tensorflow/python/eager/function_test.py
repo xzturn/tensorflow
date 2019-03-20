@@ -30,6 +30,7 @@ import numpy
 from tensorflow.core.protobuf import config_pb2
 from tensorflow.core.protobuf import rewriter_config_pb2
 from tensorflow.python import keras
+from tensorflow.python.eager import backprop
 from tensorflow.python.eager import context
 from tensorflow.python.eager import def_function
 from tensorflow.python.eager import function
@@ -44,7 +45,10 @@ from tensorflow.python.framework import tensor_spec
 from tensorflow.python.framework import test_ops
 from tensorflow.python.framework import test_util
 from tensorflow.python.keras.engine import training as keras_training
+from tensorflow.python.keras.layers import core
+from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.layers import convolutional
+from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import check_ops
 from tensorflow.python.ops import clip_ops
@@ -55,6 +59,7 @@ from tensorflow.python.ops import gen_resource_variable_ops
 from tensorflow.python.ops import init_ops
 from tensorflow.python.ops import list_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import nn_ops
 from tensorflow.python.ops import random_ops
 from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.ops import variable_scope
@@ -651,7 +656,6 @@ class FunctionTest(test.TestCase, parameterized.TestCase):
     self.assertEqual(var_t.shape, tensor_shape.TensorShape([2, 2]))
 
   def testShapeInferenceForMoreSpecificInput(self):
-    self.skipTest('b/124219898')
 
     def f(a):
       return array_ops.reshape(a, [-1, 3])
@@ -659,9 +663,12 @@ class FunctionTest(test.TestCase, parameterized.TestCase):
     signature = [tensor_spec.TensorSpec(None, dtypes.float32)]
     compiled = def_function.function(f, input_signature=signature)
 
-    with ops.Graph().as_default():
+    @def_function.function
+    def use_f():
       inputs = array_ops.zeros([10, 10, 3])
       self.assertAllEqual(f(inputs).shape, compiled(inputs).shape)
+
+    use_f()
 
   def testFuncListAttr(self):
 
@@ -2556,6 +2563,42 @@ class FunctionTest(test.TestCase, parameterized.TestCase):
     # Tracing more than twice per input doesn't make sense.
     self.assertLess(trace_count[0], 13)
 
+  @test_util.run_in_graph_and_eager_modes
+  def test_shape_inference_with_symbolic_shapes(self):
+
+    @def_function.function
+    def _uses_symbolic_shapes(w, x, y):
+      x = array_ops.identity(x, name='name_collision')
+      x = array_ops.transpose(x, [1, 0, 2])
+      x_batch = array_ops.shape(x)[0]
+      y_batch = array_ops.shape(y)[0]
+      y *= w
+      n = y_batch // x_batch
+      return array_ops.reshape(y, [n, x_batch, -1])
+
+    conc = _uses_symbolic_shapes.get_concrete_function(
+        tensor_spec.TensorSpec(None, dtypes.float32),
+        tensor_spec.TensorSpec(None, dtypes.float32),
+        tensor_spec.TensorSpec(None, dtypes.float32))
+
+    @def_function.function
+    def _call_concrete():
+      c = constant_op.constant(1.)
+      array_ops.identity(c, name='name_collision')
+      output1 = conc(array_ops.ones([2]),
+                     array_ops.ones([5, 4, 2]),
+                     array_ops.ones([20, 2]))
+      self.assertEqual([5, 4, 2], output1.shape)
+      output2 = conc(array_ops.ones([3]),
+                     array_ops.ones([5, 4, 3]),
+                     array_ops.ones([40, 3]))
+      self.assertEqual([10, 4, 3], output2.shape)
+      return output1, output2
+
+    output1, output2 = _call_concrete()
+    self.assertEqual((5, 4, 2), self.evaluate(output1).shape)
+    self.assertEqual((10, 4, 3), self.evaluate(output2).shape)
+
 
 class MultiDeviceTest(test.TestCase, parameterized.TestCase):
 
@@ -2815,6 +2858,30 @@ class MultiDeviceTest(test.TestCase, parameterized.TestCase):
 
     result = func(g1, g2, c1, g3, c2)
     self.assertEqual(result.numpy(), 5.0 * 7.0 * 17.0)
+
+
+  def testStandardTrainingLoopInFunction(self):
+    layer = core.Dense(2)
+    dataset = (
+        dataset_ops.DatasetV2.from_tensors(
+            (array_ops.ones([784]), array_ops.ones([], dtypes.int32)))
+        .repeat(10)
+        .batch(32))
+    optimizer = adam.Adam()
+
+    @def_function.function
+    def train():
+      for x, y in dataset:
+        with backprop.GradientTape() as tape:
+          out = layer(x)
+          loss = math_ops.reduce_mean(
+              nn_ops.sparse_softmax_cross_entropy_with_logits(
+                  logits=out, labels=y))
+        layer_variables = layer.trainable_variables
+        gradients = tape.gradient(loss, layer_variables)
+        optimizer.apply_gradients(zip(gradients, layer_variables))
+
+    train()
 
 
 if __name__ == '__main__':

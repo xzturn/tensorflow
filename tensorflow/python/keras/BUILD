@@ -540,10 +540,6 @@ tf_py_test(
         "//tensorflow/python:client_testlib",
     ],
     shard_count = 11,
-    tags = [
-        "no_windows",  # TODO(b/127888631)
-        "no_windows_gpu",  # TODO(b/127881287)
-    ],
 )
 
 tf_py_test(
@@ -1060,6 +1056,18 @@ cuda_py_test(
 )
 
 tf_py_test(
+    name = "vis_utils_test",
+    size = "small",
+    srcs = ["utils/vis_utils_test.py"],
+    additional_deps = [
+        ":keras",
+        "@absl_py//absl/testing:parameterized",
+        "//third_party/py/numpy",
+        "//tensorflow/python:client_testlib",
+    ],
+)
+
+tf_py_test(
     name = "conv_utils_test",
     size = "small",
     srcs = ["utils/conv_utils_test.py"],
@@ -1202,7 +1210,6 @@ tf_py_test(
     shard_count = 6,
     tags = [
         "no_oss",
-        "notap",  #TODO(b/123544294): Re-enable this test.
         "notsan",
     ],
 )
