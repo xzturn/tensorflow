@@ -14,6 +14,7 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/core/common_runtime/process_function_library_runtime.h"
 
+#include <iterator>
 #include <utility>
 
 #include "absl/strings/str_join.h"
@@ -324,103 +325,100 @@ const string* AssignedOrRequestedDeviceName(const Node& node) {
 Status ProcessFunctionLibraryRuntime::PinArgsAndRets(
     const std::vector<string>& input_devices,
     const std::vector<string>& output_devices, const DeviceSet& device_set,
-    Graph* graph) const {
+    const std::vector<Node*>& arg_nodes,
+    const std::vector<Node*>& ret_nodes) const {
   // If output_devices are not specified, we want to set the output device
   // based on the device of the output producing node. The output producing
   // node can be an arg node because functions can simply return their
   // arguments. To make sure that the output producing nodes have assigned
   // devices, we assign them to arguments first.
-  for (Node* node : graph->op_nodes()) {
-    if (node->IsArg()) {
-      const AttrValue* attr_value;
-      TF_RETURN_IF_ERROR(node->attrs().Find("index", &attr_value));
-      int64 index = attr_value->i();
-      node->set_assigned_device_name(input_devices[index]);
-    }
+  for (Node* node : arg_nodes) {
+    const AttrValue* attr_value;
+    TF_RETURN_IF_ERROR(node->attrs().Find("index", &attr_value));
+    int64 index = attr_value->i();
+    node->set_assigned_device_name(input_devices[index]);
   }
 
-  for (Node* node : graph->op_nodes()) {
-    if (node->IsRetval()) {
-      if (output_devices.empty()) {
-        VLOG(3) << "Trying to determine device for node " << node->name();
-        // If output_devices are empty, the node producing retval
-        // must have explicitly assigned device or a colocation constraint
-        // to a node with explicitly assigned device.
-        for (const auto& it : node->in_edges()) {
-          if (!it->IsControlEdge()) {
-            Node* src_node = it->src();
-            const string* src_device = AssignedOrRequestedDeviceName(*src_node);
-            string colocation_group = "";
+  for (Node* node : ret_nodes) {
+    if (output_devices.empty()) {
+      VLOG(3) << "Trying to determine device for node " << node->name();
+      // If output_devices are empty, the node producing retval
+      // must have explicitly assigned device or a colocation constraint
+      // to a node with explicitly assigned device.
+      for (const auto& it : node->in_edges()) {
+        if (!it->IsControlEdge()) {
+          Node* src_node = it->src();
+          const string* src_device = AssignedOrRequestedDeviceName(*src_node);
+          string colocation_group = "";
+          GetColocationGroup(src_node, &colocation_group);
+          VLOG(3) << "Considering src: " << src_node->name()
+                  << " src_device: " << *src_device
+                  << " colo group: " << colocation_group;
+          while (src_device->empty() && colocation_group.empty() &&
+                 src_node->IsIdentity()) {
+            src_node = *src_node->in_nodes().begin();
+            src_device = AssignedOrRequestedDeviceName(*src_node);
             GetColocationGroup(src_node, &colocation_group);
             VLOG(3) << "Considering src: " << src_node->name()
                     << " src_device: " << *src_device
                     << " colo group: " << colocation_group;
-            while (src_device->empty() && colocation_group.empty() &&
-                   src_node->IsIdentity()) {
-              src_node = *src_node->in_nodes().begin();
-              src_device = AssignedOrRequestedDeviceName(*src_node);
-              GetColocationGroup(src_node, &colocation_group);
-              VLOG(3) << "Considering src: " << src_node->name()
-                      << " src_device: " << *src_device
-                      << " colo group: " << colocation_group;
-            }
+          }
 
-            if (!colocation_group.empty()) {
-              AttrValue::ListValue colo_attr;
-              colo_attr.add_s(colocation_group);
-              std::vector<string> colo_slice = {colocation_group};
-              node->AddAttr(kColocationAttrName, colo_slice);
-            } else if (!src_device->empty()) {
-              // src_device can be a partially specified device. Find the
-              // matching device in the device_set.
-              DeviceNameUtils::ParsedName parsed;
-              if (!DeviceNameUtils::ParseFullName(*src_device, &parsed)) {
-                return errors::InvalidArgument(
-                    "Failed to parse explicit device specification ",
-                    *src_device);
-              }
-              std::vector<Device*> matching_devices;
-              device_set.FindMatchingDevices(parsed, &matching_devices);
-              if (matching_devices.empty()) {
-                return errors::InvalidArgument(
-                    "Unable to find any devices for spec ", *src_device);
-              } else if (matching_devices.size() != 1) {
-                // Convert a vector of devices to a string.
-                // Using absl::StrJoin did not work in Android builds.
-                string devices = "[";
-                for (Device* device : matching_devices) {
-                  devices.append(device->name());
-                  devices.append(", ");
-                }
-                if (devices.size() > 2) {
-                  devices.resize(devices.size() - 2);
-                }
-                devices.append("]");
-
-                return errors::InvalidArgument(
-                    "When FunctionLibraryRuntime::Options.output_devices are "
-                    "not specified for a multi-device function, the device "
-                    "specification on the output node must match exactly one "
-                    "device. Matched devices are ",
-                    devices);
-              }
-              VLOG(3) << "Setting output device to "
-                      << matching_devices[0]->name() << " for node "
-                      << node->DebugString();
-              node->set_assigned_device_name(matching_devices[0]->name());
+          if (!colocation_group.empty()) {
+            AttrValue::ListValue colo_attr;
+            colo_attr.add_s(colocation_group);
+            std::vector<string> colo_slice = {colocation_group};
+            node->AddAttr(kColocationAttrName, colo_slice);
+          } else if (!src_device->empty()) {
+            // src_device can be a partially specified device. Find the
+            // matching device in the device_set.
+            DeviceNameUtils::ParsedName parsed;
+            if (!DeviceNameUtils::ParseFullName(*src_device, &parsed)) {
+              return errors::InvalidArgument(
+                  "Failed to parse explicit device specification ",
+                  *src_device);
             }
+            std::vector<Device*> matching_devices;
+            device_set.FindMatchingDevices(parsed, &matching_devices);
+            if (matching_devices.empty()) {
+              return errors::InvalidArgument(
+                  "Unable to find any devices for spec ", *src_device);
+            } else if (matching_devices.size() != 1) {
+              // Convert a vector of devices to a string.
+              // Using absl::StrJoin did not work in Android builds.
+              string devices = "[";
+              for (Device* device : matching_devices) {
+                devices.append(device->name());
+                devices.append(", ");
+              }
+              if (devices.size() > 2) {
+                devices.resize(devices.size() - 2);
+              }
+              devices.append("]");
+
+              return errors::InvalidArgument(
+                  "When FunctionLibraryRuntime::Options.output_devices are "
+                  "not specified for a multi-device function, the device "
+                  "specification on the output node must match exactly one "
+                  "device. Matched devices are ",
+                  devices);
+            }
+            VLOG(3) << "Setting output device to "
+                    << matching_devices[0]->name() << " for node "
+                    << node->DebugString();
+            node->set_assigned_device_name(matching_devices[0]->name());
           }
         }
-      } else {
-        const AttrValue* attr_value;
-        TF_RETURN_IF_ERROR(node->attrs().Find("index", &attr_value));
-        int64 index = attr_value->i();
-        // output_devices size is checked in InstantiateMultiDevice
-        DCHECK_GT(output_devices.size(), index);
-        VLOG(3) << "Setting output device to " << output_devices[index]
-                << " for return at index " << index;
-        node->set_assigned_device_name(output_devices[index]);
       }
+    } else {
+      const AttrValue* attr_value;
+      TF_RETURN_IF_ERROR(node->attrs().Find("index", &attr_value));
+      int64 index = attr_value->i();
+      // output_devices size is checked in InstantiateMultiDevice
+      DCHECK_GT(output_devices.size(), index);
+      VLOG(3) << "Setting output device to " << output_devices[index]
+              << " for return at index " << index;
+      node->set_assigned_device_name(output_devices[index]);
     }
   }
   return Status::OK();
@@ -479,27 +477,27 @@ Status ValidateMultiDeviceOptions(
   return Status::OK();
 }
 
-Status GetGraphAndRets(const string& function_name, AttrSlice attrs,
-                       const FunctionDef* fdef,
-                       const FunctionLibraryDefinition* lib_def,
-                       std::unique_ptr<Graph>* graph,
-                       std::vector<string>* ret_node_names,
-                       DataTypeVector* ret_types,
-                       std::vector<string>* control_ret_node_names) {
-  auto get_func_sig = [lib_def](const string& op, const OpDef** sig) {
-    return lib_def->LookUpOpDef(op, sig);
-  };
-  FunctionBody* tmp_fbody;
+Status GetGraphAndArgRets(
+    const string& function_name, AttrSlice attrs, const FunctionDef* fdef,
+    const FunctionLibraryDefinition* lib_def, std::unique_ptr<Graph>* graph,
+    std::vector<Node*>* arg_nodes, std::vector<Node*>* ret_nodes,
+    std::vector<string>* ret_node_names, DataTypeVector* ret_types,
+    std::vector<string>* control_ret_node_names) {
+  std::unique_ptr<FunctionBody> fbody;
   // TODO(iga): FunctionDefToBodyHelper copies fdef. Avoid this copy.
-  TF_RETURN_IF_ERROR(
-      FunctionDefToBodyHelper(*fdef, attrs, lib_def, get_func_sig, &tmp_fbody));
-  if (tmp_fbody == nullptr) {
+  TF_RETURN_IF_ERROR(FunctionDefToBodyHelper(*fdef, attrs, lib_def, &fbody));
+  if (!fbody) {
     LOG(ERROR) << "Failed to get FunctionBody for \"" << function_name << "\"";
     return errors::Internal("Failed to construct FunctionBody for ",
                             function_name);
   }
-  std::unique_ptr<FunctionBody> fbody(tmp_fbody);
   *graph = std::unique_ptr<Graph>(fbody->graph);
+  arg_nodes->reserve(fbody->arg_nodes.size());
+  std::copy(fbody->arg_nodes.begin(), fbody->arg_nodes.end(),
+            std::back_inserter(*arg_nodes));
+  ret_nodes->reserve(fbody->ret_nodes.size());
+  std::copy(fbody->ret_nodes.begin(), fbody->ret_nodes.end(),
+            std::back_inserter(*ret_nodes));
   fbody->graph = nullptr;
   ret_node_names->reserve(fbody->ret_nodes.size());
   for (const Node* node : fbody->ret_nodes) {
@@ -548,7 +546,7 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
   }
 
   const FunctionLibraryDefinition* lib_def =
-      options.overlay_lib == nullptr ? lib_def_ : options.overlay_lib;
+      options.lib_def == nullptr ? lib_def_ : options.lib_def;
 
   const FunctionDef* fdef = lib_def->Find(function_name);
   if (fdef == nullptr) {
@@ -559,13 +557,14 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
   TF_RETURN_IF_ERROR(ValidateMultiDeviceOptions(*fdef, options));
 
   std::unique_ptr<Graph> graph;
+  std::vector<Node*> arg_nodes, ret_nodes;
   std::vector<string> ret_node_names;
   DataTypeVector ret_types;
   std::vector<string> control_ret_node_names;
 
-  TF_RETURN_IF_ERROR(GetGraphAndRets(function_name, attrs, fdef, lib_def,
-                                     &graph, &ret_node_names, &ret_types,
-                                     &control_ret_node_names));
+  TF_RETURN_IF_ERROR(GetGraphAndArgRets(
+      function_name, attrs, fdef, lib_def, &graph, &arg_nodes, &ret_nodes,
+      &ret_node_names, &ret_types, &control_ret_node_names));
 
   if (options.graph_collector != nullptr) {
     GraphDef def;
@@ -579,13 +578,14 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
     device_set.AddDevice(d);
   }
 
-  TF_RETURN_IF_ERROR(PinArgsAndRets(
-      options.input_devices, options.output_devices, device_set, graph.get()));
+  TF_RETURN_IF_ERROR(PinArgsAndRets(options.input_devices,
+                                    options.output_devices, device_set,
+                                    arg_nodes, ret_nodes));
 
   std::unique_ptr<MultiDeviceFunctionData> data =
-      absl::make_unique<MultiDeviceFunctionData>(
-          function_name, function_key, ret_node_names.size(),
-          lib_def->ReachableDefinitions(*fdef), std::move(ret_types));
+      absl::make_unique<MultiDeviceFunctionData>(function_name, function_key,
+                                                 ret_node_names.size(), lib_def,
+                                                 std::move(ret_types));
 
   GraphOptimizationPassOptions optimization_options;
   // TODO(iga): Thread other relevant options from SessionOptions.
@@ -594,7 +594,7 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
   session_options.config = options.config_proto;
   optimization_options.session_options = &session_options;
   optimization_options.graph = &graph;
-  optimization_options.flib_def = &data->overlay_lib_;
+  optimization_options.flib_def = &data->lib_def_;
   optimization_options.device_set = &device_set;
 
   DumpGraph("Before running PRE_PLACEMENT passes", graph.get());
@@ -635,7 +635,7 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
     DumpGraph("Before running graph optimization fn", graph.get());
     Status status = options.optimize_graph_fn(
         std::move(ret_node_names), std::move(control_ret_node_names),
-        &data->overlay_lib_, device_set, cpu_device, &graph);
+        &data->lib_def_, device_set, cpu_device, &graph);
     if (!status.ok()) {
       LOG(WARNING) << "Ignoring multi-device function optimization failure: "
                    << status.ToString();
@@ -646,7 +646,6 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
   DumpGraph("Before running POST_REWRITE_FOR_EXEC passes", graph.get());
   TF_RETURN_IF_ERROR(OptimizationPassRegistry::Global()->RunGrouping(
       OptimizationPassRegistry::POST_REWRITE_FOR_EXEC, optimization_options));
-  DumpGraph("After all optimization passes", graph.get());
 
   if (options.graph_collector != nullptr) {
     GraphDef def;
@@ -658,6 +657,25 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
   std::unordered_map<string, std::unique_ptr<Graph>> subgraphs;
   TF_RETURN_IF_ERROR(
       PartitionFunctionGraph(device_set, std::move(graph), &subgraphs));
+
+  for (const auto& pair : subgraphs) {
+    DumpGraph(strings::StrCat("Before running POST_PARTITIONING passes (",
+                              pair.first, ")"),
+              pair.second.get());
+  }
+  optimization_options.graph = nullptr;
+  optimization_options.device_set = nullptr;
+  optimization_options.partition_graphs = &subgraphs;
+  // Normally POST_PARTITIONING passes are run by distributed workers.
+  // Distributed workers are currently not supported in this code path, so we
+  // run the passes here.
+  TF_RETURN_IF_ERROR(OptimizationPassRegistry::Global()->RunGrouping(
+      OptimizationPassRegistry::POST_PARTITIONING, optimization_options));
+  for (const auto& pair : subgraphs) {
+    DumpGraph(
+        strings::StrCat("After all optimization passes (", pair.first, ")"),
+        pair.second.get());
+  }
 
   if (options.graph_collector != nullptr) {
     for (const auto& pair : subgraphs) {
@@ -685,7 +703,7 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
   };
 
   int i = 0;
-  FunctionNameGenerator name_generator(&data->overlay_lib_, function_name);
+  FunctionNameGenerator name_generator(&data->lib_def_, function_name);
   for (const auto& pair : subgraphs) {
     i += 1;
     // TODO(iga): Fail gracefully if the set of devices corresponds
@@ -702,11 +720,11 @@ Status ProcessFunctionLibraryRuntime::InstantiateMultiDevice(
     TF_RETURN_IF_ERROR(
         GraphToFunctionDef(*subgraph, unique_name, control_ret, &shard));
     FunctionLibraryRuntime* target_flr = GetFLR(target);
-    TF_RETURN_IF_ERROR(data->overlay_lib_.AddFunctionDef(shard));
+    TF_RETURN_IF_ERROR(data->lib_def_.AddFunctionDef(shard));
     FunctionLibraryRuntime::InstantiateOptions opts;
     opts.executor_type = options.executor_type;
     opts.target = target;
-    opts.overlay_lib = &data->overlay_lib_;
+    opts.lib_def = &data->lib_def_;
     opts.create_kernels_eagerly = options.create_kernels_eagerly;
     opts.state_handle = options.state_handle;
     FunctionLibraryRuntime::Handle component_handle;

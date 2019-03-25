@@ -7840,6 +7840,26 @@ func IteratorFromStringHandle(scope *Scope, string_handle tf.Output, optional ..
 	return op.Output(0)
 }
 
+// Converts the given `resource_handle` representing an iterator to a string.
+//
+// Arguments:
+//	resource_handle: A handle to an iterator resource.
+//
+// Returns A string representation of the given handle.
+func IteratorToStringHandle(scope *Scope, resource_handle tf.Output) (string_handle tf.Output) {
+	if scope.Err() != nil {
+		return
+	}
+	opspec := tf.OpSpec{
+		Type: "IteratorToStringHandle",
+		Input: []tf.Input{
+			resource_handle,
+		},
+	}
+	op := scope.AddOperation(opspec)
+	return op.Output(0)
+}
+
 // Outputs a tensor containing the reduction across all input tensors.
 //
 // Outputs a tensor containing the reduction across all input tensors passed to ops
@@ -10538,7 +10558,24 @@ func PreventGradient(scope *Scope, input tf.Output, optional ...PreventGradientA
 	return op.Output(0)
 }
 
-// Computes asin of x element-wise.
+// Computes the trignometric inverse sine of x element-wise.
+//
+// The `tf.math.asin` operation returns the inverse of `tf.math.sin`, such that
+// if `y = tf.math.sin(x)` then, `x = tf.math.asin(y)`.
+//
+// **Note**: The output of `tf.math.asin` will lie within the invertible range
+// of sine, i.e [-pi/2, pi/2].
+//
+// For example:
+//
+// ```python
+// # Note: [1.047, 0.785] ~= [(pi/3), (pi/4)]
+// x = tf.constant([1.047, 0.785])
+// y = tf.math.sin(x) # [0.8659266, 0.7068252]
+//
+// tf.math.asin(y) # [1.047, 0.785] = x
+// ```
+//
 func Asin(scope *Scope, x tf.Output) (y tf.Output) {
 	if scope.Err() != nil {
 		return
@@ -11735,6 +11772,31 @@ func ResourceScatterMul(scope *Scope, resource tf.Output, indices tf.Output, upd
 	return scope.AddOperation(opspec)
 }
 
+// JPEG encode input image with provided compression quality.
+//
+// `image` is a 3-D uint8 Tensor of shape `[height, width, channels]`.
+// `quality` is an int32 jpeg compression quality value between 0 and 100.
+//
+//
+// Arguments:
+//	images: Images to adjust.  At least 3-D.
+//	quality: An int quality to encode to.
+//
+// Returns 0-D. JPEG-encoded image.
+func EncodeJpegVariableQuality(scope *Scope, images tf.Output, quality tf.Output) (contents tf.Output) {
+	if scope.Err() != nil {
+		return
+	}
+	opspec := tf.OpSpec{
+		Type: "EncodeJpegVariableQuality",
+		Input: []tf.Input{
+			images, quality,
+		},
+	}
+	op := scope.AddOperation(opspec)
+	return op.Output(0)
+}
+
 // Subtracts sparse updates from the variable referenced by `resource`.
 //
 // This operation computes
@@ -11815,6 +11877,39 @@ func ResourceScatterAdd(scope *Scope, resource tf.Output, indices tf.Output, upd
 		},
 	}
 	return scope.AddOperation(opspec)
+}
+
+// Outputs the single element from the given dataset.
+//
+// Arguments:
+//	dataset: A handle to a dataset that contains a single element.
+//
+//
+//
+// Returns The components of the single element of `input`.
+func DatasetToSingleElement(scope *Scope, dataset tf.Output, output_types []tf.DataType, output_shapes []tf.Shape) (components []tf.Output) {
+	if scope.Err() != nil {
+		return
+	}
+	attrs := map[string]interface{}{"output_types": output_types, "output_shapes": output_shapes}
+	opspec := tf.OpSpec{
+		Type: "DatasetToSingleElement",
+		Input: []tf.Input{
+			dataset,
+		},
+		Attrs: attrs,
+	}
+	op := scope.AddOperation(opspec)
+	if scope.Err() != nil {
+		return
+	}
+	var idx int
+	var err error
+	if components, idx, err = makeOutputList(op, idx, "components"); err != nil {
+		scope.UpdateErr("DatasetToSingleElement", err)
+		return
+	}
+	return components
 }
 
 // Reads the value of a variable.
@@ -13051,6 +13146,22 @@ func SparseReduceSum(scope *Scope, input_indices tf.Output, input_values tf.Outp
 	}
 	op := scope.AddOperation(opspec)
 	return op.Output(0)
+}
+
+// Set a summary_writer_interface to record statistics using given stats_aggregator.
+//
+// Returns the created operation.
+func StatsAggregatorSetSummaryWriter(scope *Scope, stats_aggregator tf.Output, summary tf.Output) (o *tf.Operation) {
+	if scope.Err() != nil {
+		return
+	}
+	opspec := tf.OpSpec{
+		Type: "StatsAggregatorSetSummaryWriter",
+		Input: []tf.Input{
+			stats_aggregator, summary,
+		},
+	}
+	return scope.AddOperation(opspec)
 }
 
 // Records the latency of producing `input_dataset` elements in a StatsAggregator.
@@ -16769,6 +16880,16 @@ func ArgMaxOutputType(value tf.DataType) ArgMaxAttr {
 // Returns the index with the largest value across dimensions of a tensor.
 //
 // Note that in case of ties the identity of the return value is not guaranteed.
+//
+// Usage:
+//   ```python
+//   import tensorflow as tf
+//   a = [1, 10, 26.9, 2.8, 166.32, 62.3]
+//   b = tf.math.argmax(input = a)
+//   c = tf.keras.backend.eval(b)
+//   # c = 4
+//   # here a[4] = 166.32 which is the largest element of a across axis 0
+//   ```
 //
 // Arguments:
 //
@@ -26689,7 +26810,24 @@ func ResourceApplyAdaMax(scope *Scope, var_ tf.Output, m tf.Output, v tf.Output,
 	return scope.AddOperation(opspec)
 }
 
-// Computes atan of x element-wise.
+// Computes the trignometric inverse tangent of x element-wise.
+//
+// The `tf.math.atan` operation returns the inverse of `tf.math.tan`, such that
+// if `y = tf.math.tan(x)` then, `x = tf.math.atan(y)`.
+//
+// **Note**: The output of `tf.math.atan` will lie within the invertible range
+// of tan, i.e (-pi/2, pi/2).
+//
+// For example:
+//
+// ```python
+// # Note: [1.047, 0.785] ~= [(pi/3), (pi/4)]
+// x = tf.constant([1.047, 0.785])
+// y = tf.math.tan(x) # [1.731261, 0.99920404]
+//
+// tf.math.atan(y) # [1.047, 0.785] = x
+// ```
+//
 func Atan(scope *Scope, x tf.Output) (y tf.Output) {
 	if scope.Err() != nil {
 		return
@@ -32505,6 +32643,16 @@ func ArgMinOutputType(value tf.DataType) ArgMinAttr {
 //
 // Note that in case of ties the identity of the return value is not guaranteed.
 //
+// Usage:
+//   ```python
+//   import tensorflow as tf
+//   a = [1, 10, 26.9, 2.8, 166.32, 62.3]
+//   b = tf.math.argmin(input = a)
+//   c = tf.keras.backend.eval(b)
+//   # c = 0
+//   # here a[0] = 1 which is the smallest element of a across axis 0
+//   ```
+//
 // Arguments:
 //
 //	dimension: int32 or int64, must be in the range `[-rank(input), rank(input))`.
@@ -37053,10 +37201,11 @@ func DecodePng(scope *Scope, contents tf.Output, optional ...DecodePngAttr) (ima
 	return op.Output(0)
 }
 
-// Decode the first frame of a GIF-encoded image to a uint8 tensor.
+// Decode the frame(s) of a GIF-encoded image to a uint8 tensor.
 //
-// GIF with frame or transparency compression are not supported
-// convert animated GIF from compressed to uncompressed by:
+// GIF images with frame or transparency compression are not supported.
+// On Linux and MacOS systems, convert animated GIFs from compressed to
+// uncompressed by running:
 //
 //     convert $src.gif -coalesce $dst.gif
 //
@@ -37066,7 +37215,7 @@ func DecodePng(scope *Scope, contents tf.Output, optional ...DecodePngAttr) (ima
 // Arguments:
 //	contents: 0-D.  The GIF-encoded image.
 //
-// Returns 4-D with shape `[num_frames, height, width, 3]`. RGB order
+// Returns 4-D with shape `[num_frames, height, width, 3]`. RGB channel order.
 func DecodeGif(scope *Scope, contents tf.Output) (image tf.Output) {
 	if scope.Err() != nil {
 		return
@@ -39235,57 +39384,4 @@ func IteratorGetNext(scope *Scope, iterator tf.Output, output_types []tf.DataTyp
 		return
 	}
 	return components
-}
-
-// Outputs the single element from the given dataset.
-//
-// Arguments:
-//	dataset: A handle to a dataset that contains a single element.
-//
-//
-//
-// Returns The components of the single element of `input`.
-func DatasetToSingleElement(scope *Scope, dataset tf.Output, output_types []tf.DataType, output_shapes []tf.Shape) (components []tf.Output) {
-	if scope.Err() != nil {
-		return
-	}
-	attrs := map[string]interface{}{"output_types": output_types, "output_shapes": output_shapes}
-	opspec := tf.OpSpec{
-		Type: "DatasetToSingleElement",
-		Input: []tf.Input{
-			dataset,
-		},
-		Attrs: attrs,
-	}
-	op := scope.AddOperation(opspec)
-	if scope.Err() != nil {
-		return
-	}
-	var idx int
-	var err error
-	if components, idx, err = makeOutputList(op, idx, "components"); err != nil {
-		scope.UpdateErr("DatasetToSingleElement", err)
-		return
-	}
-	return components
-}
-
-// Converts the given `resource_handle` representing an iterator to a string.
-//
-// Arguments:
-//	resource_handle: A handle to an iterator resource.
-//
-// Returns A string representation of the given handle.
-func IteratorToStringHandle(scope *Scope, resource_handle tf.Output) (string_handle tf.Output) {
-	if scope.Err() != nil {
-		return
-	}
-	opspec := tf.OpSpec{
-		Type: "IteratorToStringHandle",
-		Input: []tf.Input{
-			resource_handle,
-		},
-	}
-	op := scope.AddOperation(opspec)
-	return op.Output(0)
 }

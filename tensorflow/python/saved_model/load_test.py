@@ -1140,22 +1140,69 @@ class LoadTest(test.TestCase, parameterized.TestCase):
     self.assertAllEqual(4, root.f(constant_op.constant(3)).numpy())
 
   def test_partial(self, cycles):
-    # TODO(vbardiovsky): Figure out the story for FunctionSpec vs partial vs
-    # input_signature.
+    # TODO(b/124441704): Figure out the story for FunctionSpec vs partial.
     self.skipTest("Partial does not work for serialization.")
 
     def f(x, y):
       return x + y
 
     func = def_function.function(
-        functools.partial(f, x=array_ops.zeros([1]), y=array_ops.zeros([1])))
+        functools.partial(f, x=array_ops.zeros([1]), y=array_ops.ones([1])))
 
     root = tracking.AutoTrackable()
     root.f = func
-    self.assertAllEqual(root.f(), [0.0])
+    self.assertAllEqual(root.f(), [1.0])
 
     root = self.cycle(root, cycles)
-    self.assertAllEqual(root.f(), [0.0])
+    self.assertAllEqual(root.f(), [1.0])
+
+  def test_partial_with_non_tensor_defaults(self, cycles):
+    def f(x, y):
+      return x + y
+
+    func = def_function.function(functools.partial(f, y=5))
+
+    root = tracking.AutoTrackable()
+    root.f = func
+    self.assertAllEqual(root.f(1), 6)
+
+    root = self.cycle(root, cycles)
+    self.assertAllEqual(root.f(1), 6)
+
+  def test_partial_with_positional(self, cycles):
+    # TODO(b/124441704): Figure out the story for FunctionSpec vs partial.
+    self.skipTest("Partial does not work for serialization.")
+
+    def f(x, y):
+      return x + y
+
+    func = def_function.function(functools.partial(f, constant_op.constant(5)))
+
+    root = tracking.AutoTrackable()
+    root.f = func
+    self.assertAllEqual(root.f(1), 6)
+
+    root = self.cycle(root, cycles)
+    self.assertAllEqual(root.f(1), 6)
+
+  def test_partial_with_passed_fn_as_default(self, cycles):
+    # TODO(b/124441704): Figure out the story for FunctionSpec vs partial.
+    self.skipTest("Partial does not work for serialization.")
+
+    def f(x, y):
+      return x(3) + y
+
+    def my_func(a):
+      return 2 * a
+
+    func = def_function.function(functools.partial(f, my_func))
+
+    root = tracking.AutoTrackable()
+    root.f = func
+    self.assertEqual(root.f(constant_op.constant(3)).numpy(), 9)
+
+    root = self.cycle(root, cycles)
+    self.assertEqual(root.f(constant_op.constant(3)).numpy(), 9)
 
   def test_convert_to_input_signature(self, cycles):
 
@@ -1191,6 +1238,13 @@ class LoadTest(test.TestCase, parameterized.TestCase):
     self.assertEqual([None, 2], input_y.shape.as_list())
     output, = imported_graph.outputs
     self.assertEqual([None, 5], output.shape.as_list())
+    signature = root.signatures["serving_default"]
+    self.assertEqual(
+        [None, 3], signature.inputs[0].shape.as_list())
+    self.assertEqual(
+        [None, 2], signature.inputs[1].shape.as_list())
+    self.assertEqual(
+        [None, 5], signature.outputs[0].shape.as_list())
 
   def test_dense_features_layer(self, cycles):
     columns = [feature_column_v2.numeric_column("x"),
