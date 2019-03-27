@@ -79,7 +79,7 @@ def compile(computation, inputs=None):  # pylint: disable=redefined-builtin
     inputs: A list of inputs or `None` (equivalent to an empty list). Each input
       can be a nested structure containing values that are convertible to
       tensors. Note that passing an N-dimension list of compatible values will
-      result in a N-dimention list of scalar tensors rather than a single Rank-N
+      result in a N-dimension list of scalar tensors rather than a single Rank-N
       tensors. If you need different behavior, convert part of inputs to tensors
       with `tf.convert_to_tensor`.
 
