@@ -56,9 +56,10 @@ class CallConvention(enum.Enum):
 def create_mean_metric(value, name=None):
   # TODO(psv): Remove this import when b/110718070 is fixed.
   from tensorflow.python.keras import metrics as metrics_module  # pylint: disable=g-import-not-at-top
+  from tensorflow.python.keras.distribute import distributed_training_utils  # pylint: disable=g-import-not-at-top
   metric_obj = metrics_module.Mean(name=name)
-  result = metric_obj(value)
-  return metric_obj, result
+  return (metric_obj,
+          distributed_training_utils.call_replica_local_fn(metric_obj, value))
 
 
 def make_variable(name,
@@ -557,3 +558,8 @@ def autocast_context_manager(input_list, should_cast):
   var_read_dtype = _get_var_read_dtype(input_list, should_cast)
   return ops.get_default_graph()._enable_auto_casting_variables(  # pylint: disable=protected-access
       var_read_dtype)
+
+
+def is_subclassed(layer):
+  return (layer.__module__.find('keras.engine') == -1 and
+          layer.__module__.find('keras.layers') == -1)
