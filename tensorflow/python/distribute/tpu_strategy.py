@@ -236,7 +236,8 @@ class TPUStrategyV1(distribute_lib.StrategyV1):
     return _tpu_run(self, fn, args, kwargs)
 
 
-class TPUExtended(distribute_lib.DistributionStrategyExtended):
+# TODO(josh11b): Switch to V2 when we no longer need to support tf.compat.v1.
+class TPUExtended(distribute_lib.StrategyExtendedV1):
   """Implementation of TPUStrategy."""
 
   def __init__(self,
@@ -323,6 +324,10 @@ class TPUExtended(distribute_lib.DistributionStrategyExtended):
     return numpy_dataset.one_host_numpy_dataset(
         numpy_input, numpy_dataset.SingleDevice(self._host_device),
         session)
+
+  def _experimental_distribute_dataset(self, dataset):
+    return input_lib.get_distributed_dataset(dataset, self._input_workers,
+                                             self._num_replicas_in_sync)
 
   # TODO(priyag): Deal with OutOfRange errors once b/111349762 is fixed.
   # TODO(sourabhbajaj): Remove the initial_loop_values parameter when we have

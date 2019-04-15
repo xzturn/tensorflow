@@ -277,6 +277,18 @@ py_library(
 )
 
 py_library(
+    name = "central_storage_strategy",
+    srcs = ["central_storage_strategy.py"],
+    visibility = ["//tensorflow:internal"],
+    deps = [
+        ":device_util",
+        ":distribute_lib",
+        ":parameter_server_strategy",
+        "//tensorflow/python:util",
+    ],
+)
+
+py_library(
     name = "one_device_strategy",
     srcs = ["one_device_strategy.py"],
     visibility = ["//tensorflow:internal"],
@@ -531,11 +543,11 @@ py_library(
     srcs = ["strategy_combinations.py"],
     srcs_version = "PY2AND3",
     deps = [
+        ":central_storage_strategy",
         ":combinations",
         ":distribute_lib",
         ":mirrored_strategy",
         ":one_device_strategy",
-        ":parameter_server_strategy",
         ":tpu_strategy",
         "//tensorflow/python:framework_ops",
         "//tensorflow/python:training",
@@ -749,6 +761,24 @@ cuda_py_test(
         "//tensorflow/python:dtypes",
         "//tensorflow/python:training",
         "//tensorflow/python:variables",
+    ],
+)
+
+distribute_py_test(
+    name = "custom_training_loop_test",
+    srcs = ["custom_training_loop_test.py"],
+    main = "custom_training_loop_test.py",
+    tags = [
+        "multi_and_single_gpu",
+    ],
+    deps = [
+        "//tensorflow/python:errors",
+        "//tensorflow/python/data/ops:dataset_ops",
+        "//tensorflow/python/distribute:combinations",
+        "//tensorflow/python/distribute:multi_worker_test_base",
+        "//tensorflow/python/distribute:strategy_combinations",
+        "//tensorflow/python/eager:test",
+        "@absl_py//absl/testing:parameterized",
     ],
 )
 

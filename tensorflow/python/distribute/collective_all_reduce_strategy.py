@@ -102,8 +102,7 @@ class CollectiveAllReduceExtended(mirrored_strategy.MirroredExtended):
                container_strategy,
                communication,
                cluster_resolver=TFConfigClusterResolver()):
-    distribute_lib.DistributionStrategyExtended.__init__(
-        self, container_strategy)
+    distribute_lib.StrategyExtendedV1.__init__(self, container_strategy)
     assert isinstance(
         communication,
         cross_device_ops_lib.CollectiveCommunication)
@@ -350,6 +349,12 @@ class CollectiveAllReduceExtended(mirrored_strategy.MirroredExtended):
         input_pipeline_id=input_pipeline_id,
         num_replicas_in_sync=self._num_replicas_in_sync)
     return input_context
+
+  def _experimental_distribute_dataset(self, dataset):
+    input_context = self._make_input_context()
+    return input_lib.get_distributed_dataset(dataset, self._input_workers,
+                                             self._num_replicas_in_sync,
+                                             input_context=input_context)
 
   def _make_dataset_iterator(self, dataset):
     """Distributes the dataset to each local GPU."""

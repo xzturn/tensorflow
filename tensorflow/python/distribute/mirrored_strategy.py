@@ -407,8 +407,7 @@ def _infer_num_gpus_per_worker(devices):
 def all_local_devices(num_gpus=None):
   if num_gpus is None:
     num_gpus = context.num_gpus()
-  return (tuple("/device:GPU:%d" % i for i in range(num_gpus)) or
-          ("/device:CPU:0",))
+  return device_util.local_devices_from_num_gpus(num_gpus)
 
 
 def _all_devices():
@@ -452,7 +451,8 @@ class MirroredStrategyV1(distribute_lib.StrategyV1):
     super(MirroredStrategyV1, self).__init__(extended)
 
 
-class MirroredExtended(distribute_lib.DistributionStrategyExtended):
+# TODO(josh11b): Switch to V2 when we no longer need to support tf.compat.v1.
+class MirroredExtended(distribute_lib.StrategyExtendedV1):
   """Implementation of MirroredStrategy."""
 
   def __init__(self, container_strategy, devices=None, cross_device_ops=None):
@@ -596,6 +596,10 @@ class MirroredExtended(distribute_lib.DistributionStrategyExtended):
           num_replicas_in_sync=self._num_replicas_in_sync))
     return input_lib.InputFunctionIterator(
         input_fn, self._input_workers, input_contexts)
+
+  def _experimental_distribute_dataset(self, dataset):
+    return input_lib.get_distributed_dataset(dataset, self._input_workers,
+                                             self._num_replicas_in_sync)
 
   def _experimental_make_numpy_dataset(self, numpy_input, session):
     return numpy_dataset.one_host_numpy_dataset(
