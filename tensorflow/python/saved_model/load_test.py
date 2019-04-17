@@ -35,7 +35,10 @@ from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
 from tensorflow.python.framework import tensor_spec
 from tensorflow.python.framework import test_util
+from tensorflow.python.keras.engine import input_layer
 from tensorflow.python.keras.engine import sequential
+from tensorflow.python.keras.engine import training as training_lib
+from tensorflow.python.keras.layers import convolutional
 from tensorflow.python.keras.layers import core
 from tensorflow.python.keras.optimizer_v2 import adam
 from tensorflow.python.lib.io import file_io
@@ -43,6 +46,7 @@ from tensorflow.python.module import module
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import lookup_ops
 from tensorflow.python.ops import math_ops
+from tensorflow.python.ops import variable_scope
 from tensorflow.python.ops import variables
 from tensorflow.python.saved_model import load
 from tensorflow.python.saved_model import save
@@ -89,6 +93,22 @@ class LoadTest(test.TestCase, parameterized.TestCase):
     self.assertTrue(imported.v1.trainable)
     self.assertEqual(imported.v2.numpy(), 2.0)
     self.assertFalse(imported.v2.trainable)
+
+  def test_variables_name(self, cycles):
+    root = tracking.AutoTrackable()
+    # Test 2 variables with same name: should work as the checkpoint
+    # is based on object name and not on variable name.
+    root.v1 = variables.Variable(1., trainable=True, name="v1")
+    root.v2 = variables.Variable(2., trainable=False, name="v1")
+    imported = self.cycle(root, cycles)
+    self.assertEqual(imported.v1.numpy(), 1.0)
+    self.assertEqual(imported.v2.numpy(), 2.0)
+    self.assertEqual(imported.v1.name, root.v1.name)
+    self.assertEqual(imported.v2.name, root.v2.name)
+    with variable_scope.variable_scope("foo"):
+      imported = self.cycle(root, cycles)
+      self.assertTrue(imported.v1.name.startswith("foo/"))
+      self.assertTrue(imported.v2.name.startswith("foo/"))
 
   @test_util.run_in_graph_and_eager_modes
   def test_capture_variables(self, cycles):
@@ -1421,6 +1441,17 @@ class LoadTest(test.TestCase, parameterized.TestCase):
     loaded = self.cycle(model, cycles)
     loaded._default_save_signature(model_input)
     loaded.signatures["serving_default"](**model_input)
+
+  def test_functional_model_with_conv(self, cycles):
+    x = input_layer.Input(name="x", shape=(None, None, 3), dtype=dtypes.float32)
+    conved = convolutional.Conv2D(filters=3, kernel_size=3, dilation_rate=2)(x)
+    model = training_lib.Model([x], conved)
+    model_input = array_ops.ones((1, 10, 10, 3))
+    initial_output = model.predict([model_input])
+    model = self.cycle(model, cycles)
+    self.assertAllClose(
+        [initial_output],
+        list(model.signatures["serving_default"](model_input).values()))
 
 
 class SingleCycleTests(test.TestCase, parameterized.TestCase):
