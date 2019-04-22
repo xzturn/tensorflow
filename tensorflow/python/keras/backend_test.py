@@ -92,6 +92,21 @@ def compare_two_inputs_op_to_numpy(keras_op,
                          str(keras_output))
 
 
+class BackendResetTest(test.TestCase, parameterized.TestCase):
+
+  # We can't use the normal parameterized decorator because the test session
+  # will block graph clearing.
+  @parameterized.named_parameters(('_v1', context.graph_mode),
+                                  ('_v2', context.eager_mode))
+  def test_new_graph(self, test_context):
+    with test_context():
+      g_old = keras.backend.get_graph()
+      keras.backend.clear_session()
+      g = keras.backend.get_graph()
+
+      assert g_old is not g
+
+
 @test_util.run_all_in_graph_and_eager_modes
 class BackendUtilsTest(test.TestCase):
 
@@ -1743,8 +1758,8 @@ class BackendGraphTests(test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_function_tf_fetches(self):
-    # Additional operations can be passed to tf.Session().run() via its
-    # `fetches` arguments. In contrast to `updates` argument of
+    # Additional operations can be passed to tf.compat.v1.Session().run() via
+    # its `fetches` arguments. In contrast to `updates` argument of
     # keras.backend.function() these do not have control dependency on `outputs`
     # so they can run in parallel. Also they should not contribute to output of
     # keras.backend.function().
@@ -1766,9 +1781,9 @@ class BackendGraphTests(test.TestCase):
 
   @test_util.run_deprecated_v1
   def test_function_tf_feed_dict(self):
-    # Additional substitutions can be passed to `tf.Session().run()` via its
-    # `feed_dict` arguments. Note that the feed_dict is passed once in the
-    # constructor but we can modify the values in the dictionary. Through
+    # Additional substitutions can be passed to `tf.compat.v1.Session().run()`
+    # via its `feed_dict` arguments. Note that the feed_dict is passed once in
+    # the constructor but we can modify the values in the dictionary. Through
     # this feed_dict we can provide additional substitutions besides Keras
     # inputs.
     with self.cached_session():

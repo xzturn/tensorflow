@@ -196,7 +196,7 @@ py_library(
         "//tensorflow/python/ops/signal",
         "//tensorflow/python/profiler",
         "//tensorflow/python/saved_model",
-        "//tensorflow/python/tools:component_api_helper",
+        "//tensorflow/python/tools:module_util",
         "//tensorflow/python/tools/api/generator:create_python_api",
         "//tensorflow/python/tpu:tpu_noestimator",
         "//third_party/py/numpy",
@@ -2896,7 +2896,7 @@ py_test(
 
 py_test(
     name = "loss_scale_test",
-    size = "small",
+    size = "medium",
     srcs = ["training/experimental/loss_scale_test.py"],
     deps = [
         ":loss_scale",

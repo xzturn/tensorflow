@@ -221,6 +221,8 @@ def clear_session():
   global _GRAPH_LEARNING_PHASES  # pylint: disable=global-variable-not-assigned
   global _GRAPH_VARIABLES  # pylint: disable=global-variable-not-assigned
   global _GRAPH_TF_OPTIMIZERS  # pylint: disable=global-variable-not-assigned
+  global _GRAPH
+  _GRAPH = None
   ops.reset_default_graph()
   reset_uids()
   _SESSION.session = None
@@ -243,7 +245,7 @@ def manual_variable_initialization(value):
   variables should be initialized
   as they are instantiated (default), or if
   the user should handle the initialization
-  (e.g. via `tf.initialize_all_variables()`).
+  (e.g. via `tf.compat.v1.initialize_all_variables()`).
 
   Arguments:
       value: Python boolean.
@@ -846,7 +848,7 @@ def is_keras_tensor(x):
       >>> np_var = numpy.array([1, 2])
       >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
       ValueError
-      >>> k_var = tf.placeholder('float32', shape=(1,1))
+      >>> k_var = tf.compat.v1.placeholder('float32', shape=(1,1))
       >>> K.is_keras_tensor(k_var) # A variable indirectly created outside of
       keras is not a Keras tensor.
       False
