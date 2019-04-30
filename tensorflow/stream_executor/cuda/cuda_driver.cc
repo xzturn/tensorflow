@@ -17,6 +17,7 @@ limitations under the License.
 
 #include <stdint.h>
 #include <stdlib.h>
+
 #include <map>
 #include <set>
 #include <utility>
@@ -24,15 +25,15 @@ limitations under the License.
 #include "absl/base/casts.h"
 #include "absl/container/inlined_vector.h"
 #include "absl/debugging/leak_check.h"
+#include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "absl/synchronization/notification.h"
 #include "cuda/include/cuda_runtime_api.h"
 #include "tensorflow/stream_executor/cuda/cuda_diagnostics.h"
 #include "tensorflow/stream_executor/lib/env.h"
 #include "tensorflow/stream_executor/lib/error.h"
 #include "tensorflow/stream_executor/lib/human_readable.h"
-#include "tensorflow/stream_executor/lib/notification.h"
-#include "tensorflow/stream_executor/lib/ptr_util.h"
 #include "tensorflow/stream_executor/lib/stacktrace.h"
 #include "tensorflow/stream_executor/lib/static_threadlocal.h"
 #include "tensorflow/stream_executor/lib/threadpool.h"
@@ -76,7 +77,7 @@ class CreatedContexts {
     auto it = insert_result.first;
     if (insert_result.second) {
       // context was not present in the map.  Add it.
-      it->second = MakeUnique<GpuContext>(context, next_id_++);
+      it->second = absl::make_unique<GpuContext>(context, next_id_++);
     }
     return it->second.get();
   }
@@ -580,7 +581,7 @@ GpuDriver::ContextGetSharedMemConfig(GpuContext* context) {
 /* static */ bool GpuDriver::LoadPtx(GpuContext* context,
                                      const char* ptx_contents,
                                      CUmodule* module) {
-  port::Notification notification;
+  absl::Notification notification;
   bool ret = true;
   GetDriverExecutor()->Schedule([context, ptx_contents, module, &ret,
                                  &notification]() {
