@@ -26,9 +26,7 @@ from tensorflow.python.data.ops import dataset_ops
 from tensorflow.python.data.ops import iterator_ops
 from tensorflow.python.distribute import distribute_coordinator_context as dc_context
 from tensorflow.python.distribute import distribution_strategy_context as ds_context
-from tensorflow.python.distribute import one_device_strategy
 from tensorflow.python.distribute import reduce_util
-from tensorflow.python.distribute import values
 from tensorflow.python.eager import context
 from tensorflow.python.eager import def_function
 from tensorflow.python.framework import dtypes
@@ -193,31 +191,6 @@ def flatten_per_replica_values(distribution_strategy, per_replica_values):
           for e in distribution_strategy.unwrap(flattened)]
 
 
-def unwrap_per_replica_values(distribution_strategy, per_replica_values):
-  """Unwraps a nest of PerReplica parameters.
-
-  PerReplica values have one value associated with each device. Each entry in
-  the PerReplica dict has a device `key` and the corresponding value on the
-  device as the `value`. In this function we take a PerReplica value or a list
-  of PerReplica values, transform all the values in each PerReplica dict to a
-  list and return a list of such lists.
-
-  Args:
-    distribution_strategy: DistributionStrategy used to distribute training and
-      validation.
-    per_replica_values: List of PerReplica object or a single PerReplica object.
-
-  Returns:
-    List of lists of values of all the PerReplica objects.
-
-  """
-  flats = [
-      distribution_strategy.unwrap(flattened)
-      for flattened in nest.flatten(per_replica_values)
-  ]
-  return list(zip(*flats))
-
-
 def validate_callbacks(input_callbacks, optimizer):
   """Validate whether given callbacks are supported by DistributionStrategy.
 
@@ -339,8 +312,9 @@ def validate_per_replica_inputs(distribution_strategy, x):
     # structure.
     x_values = distribution_strategy.unwrap(x)
 
-    # Validate that the shape and dtype of all the elements in x are the same.
-    validate_all_tensor_shapes(x, x_values)
+    if not context.executing_eagerly():
+      # Validate that the shape and dtype of all the elements in x are the same.
+      validate_all_tensor_shapes(x, x_values)
     validate_all_tensor_types(x, x_values)
 
     x_values_list.append(x_values[0])
@@ -398,16 +372,12 @@ def init_restore_or_wait_for_variables():
     _wait_for_variable_initialization(session)
 
 
-def validate_inputs(x, y, distribution_strategy, allow_partial_batch=False):
+def validate_inputs(x, y):
   """Validate inputs when using DistributionStrategy.
 
   Args:
     x: Model Inputs.
     y: Model Targets.
-    distribution_strategy: The DistributionStrategy with which the model is
-      compiled.
-    allow_partial_batch: Boolean. If false, datasets must have fully
-      defined shapes.
 
   Raises:
     ValueError: if input is not a Dataset or a numpy array(when we use
@@ -418,16 +388,6 @@ def validate_inputs(x, y, distribution_strategy, allow_partial_batch=False):
     raise ValueError('`DistributionStrategy` does not support inputs of type '
                      'Iterator. You must pass a `tf.data.Dataset` object or a '
                      'numpy array as input.')
-
-  if is_tpu_strategy(distribution_strategy):
-    for i in [x, y]:
-      if (isinstance(i, dataset_ops.DatasetV2) and not allow_partial_batch):
-        if not is_dataset_shape_fully_defined(i):
-          raise ValueError(
-              'Using TPUs currently requires fully defined shapes. Either use '
-              'set_shape() on the input tensors or use '
-              'dataset.batch(..., drop_remainder=True).'
-              'Found unknown shape in input {}.'.format(i))
 
 
 # TODO(b/118776054): Currently we support global batch size for TPUStrategy and
@@ -485,9 +445,9 @@ def get_input_params(distribution_strategy, first_x_value, steps, batch_size,
   # Partial batches are allowed for training as we repeat the
   # dataset when converting numpy arrays into a dataset.
   # For other modes uneven batch sizes are not allowed except
-  # for `predict()` on TPUStrategy.
+  # for `test()` and `predict()` on TPUStrategy.
   allow_partial_batch = (mode == ModeKeys.TRAIN or
-                         (mode == ModeKeys.PREDICT
+                         ((mode == ModeKeys.PREDICT or mode == ModeKeys.TEST)
                           and is_tpu_strategy(distribution_strategy)))
 
   if steps is None:
@@ -622,25 +582,12 @@ def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
   if is_distributing_by_cloning(model):
     inputs = flatten_per_replica_values(strategy, inputs)
     targets = flatten_per_replica_values(strategy, targets)
-  else:
-    # TODO(b/129653859):  Simplify after PerReplica can be the input of
-    # `def_function.function`.
-    # Without cloning the `inputs` and `target` are the inputs to
-    # `values.regroup`.  Instead of a flat list of `len(inputs) * num_replicas`
-    # we need a list of `len(inputs)` lists, where each per-input list has
-    # `len(num_replicas)` elements. Each element[i] in the per-input
-    # list is the input to the i-th replica.  For example, if inputs are
-    # `[[1, 2], [3, 4]]` and there are two replicas, then we want
-    # `[[1, 3], [2, 4]]` (see `values_test.testWrapAListOfTwoTuples`) so that
-    # we arrive at a `PerReplica(d0: 1, d1: 2)` and a `PerReplica(d0:3, d1:4)`.
-    inputs = unwrap_per_replica_values(strategy, inputs)
-    targets = unwrap_per_replica_values(strategy, targets)
+    # Expand 1-dimensional inputs.
+    # TODO(b/124535720): Remove once this standarize data logic is shared with
+    # main flow.
+    inputs, targets = nest.map_structure(
+        training_utils.standardize_single_array, (inputs, targets))
 
-  # Expand 1-dimensional inputs.
-  # TODO(b/124535720): Remove once this standarize data logic is shared with
-  # main flow.
-  inputs, targets = nest.map_structure(training_utils.standardize_single_array,
-                                       (inputs, targets))
   if mode == ModeKeys.PREDICT:
     sample_weights = []
     targets = []
@@ -838,7 +785,6 @@ def _make_execution_function(model, mode):
 def _make_execution_function_without_cloning(model, mode):
   """Creates a function to run one step of distributed model execution."""
   strategy = model._distribution_strategy
-  devices = strategy.extended.worker_devices
 
   with strategy.scope():
     per_replica_function = _make_replica_execution_function(model, mode)
@@ -847,26 +793,6 @@ def _make_execution_function_without_cloning(model, mode):
     def distributed_function(x, y, sample_weights, learning_phase=None):
       """A single step of the distributed execution across replicas."""
       del learning_phase
-
-      # TODO(b/129653859):  Simplify after PerReplica can be the input of
-      # `def_function.function`.  `regroup` calls and re-wrapping in
-      # PerReplica won't be needed then.
-      if isinstance(strategy, one_device_strategy.OneDeviceStrategy):
-        device_map = values.SingleDeviceMap(devices[0])
-        wrap_class = lambda d, x: x
-      else:
-        device_map = values.ReplicaDeviceMap(devices)
-        wrap_class = values.PerReplica
-
-      # Transform each lists of lists of values into per replica objects
-      # in the case of mirrored strategy.  For example, for 2 replicas:
-      # [[x0, y0], [x1, y1]] > [PerReplica(d0:x0, d1:x1),
-      #                         PerReplica(d0:y0, d1:y1)]
-      x = values.regroup(device_map, x, wrap_class)
-      y = values.regroup(device_map, y, wrap_class) if y else None
-      sample_weights = values.regroup(device_map, sample_weights,
-                                      wrap_class) if sample_weights else None
-
       # Call `Model.{train,test,predict}_on_batch` on every replica passing
       # PerReplicas as arguments.  On every replica inside this call, each
       # PerReplica object will return the value for that replica.  The outputs
