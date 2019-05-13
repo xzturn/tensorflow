@@ -371,7 +371,9 @@ struct Kernel<Path::kNeonDotprod, std::int8_t, std::int8_t, DstScalar,
     KernelParams8bit<LhsLayout::kCols, RhsLayout::kCols> params;
     MakeKernelParams8bit(lhs, rhs, spec, start_row, start_col, end_row, end_col,
                          dst, &params);
-    if (__builtin_expect(tuning == Tuning::kInOrder, true)) {
+    // TODO(renjieliu): Add support for in order case.
+    if (__builtin_expect(tuning == Tuning::kInOrder, true) &&
+        !std::is_same<DstScalar, std::int32_t>::value) {
       Kernel8bitNeonDotprodInOrder(params);
     } else {
       Kernel8bitNeonDotprodOutOfOrder(params);
@@ -453,8 +455,8 @@ void KernelFloatNeonDotprodInOrder(const KernelParamsFloat<8, 8>& params);
 template <>
 struct Kernel<Path::kNeon, float, float, float, BasicSpec<float, float>> {
   Tuning tuning = Tuning::kAuto;
-  using LhsLayout = FixedKernelLayout<Order::kRowMajor, 4, 8>;
-  using RhsLayout = FixedKernelLayout<Order::kRowMajor, 4, 8>;
+  using LhsLayout = FixedKernelLayout<Order::kRowMajor, 1, 8>;
+  using RhsLayout = FixedKernelLayout<Order::kRowMajor, 1, 8>;
   explicit Kernel(Tuning tuning_) : tuning(tuning_) {}
   void Run(const PackedMatrix<float>& lhs, const PackedMatrix<float>& rhs,
            const BasicSpec<float, float>& spec, int start_row, int start_col,
