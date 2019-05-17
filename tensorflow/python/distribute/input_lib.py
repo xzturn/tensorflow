@@ -18,6 +18,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import sys
+
+import six
+
 from tensorflow.python.data.experimental.ops import batching
 from tensorflow.python.data.experimental.ops import distribute
 from tensorflow.python.data.ops import dataset_ops
@@ -189,9 +193,14 @@ class DistributedIterator(object):
   """Common implementation for all input iterators."""
 
   def __init__(self, input_workers, iterators, strategy, **kwargs):
-    # TODO(b/128995245): Remove this temporary flag once the zero batch case can
-    # be correctly handled.
-    self._enable_get_next_as_optional = False
+    # TODO(b/128995245): We only enable get_next_as_optional in eager mode. In
+    # graph mode, the zero batch case in batch norm is not handled due to
+    # XLA-GPU regression.
+    if ops.executing_eagerly_outside_functions():
+      self._enable_get_next_as_optional = True
+    else:
+      self._enable_get_next_as_optional = False
+
     if len(kwargs) > 1:
       raise ValueError("DistributedIterator constructor only takes one "
                        "experimental flag now")
@@ -360,7 +369,20 @@ class DistributedDataset(object):
     # pipeline and only receive its own shard of the dataset.
     assert isinstance(input_workers, InputWorkers)
     if split_batch_by:
-      dataset = distribute._RebatchDataset(dataset, split_batch_by)  # pylint: disable=protected-access
+      try:
+        dataset = distribute._RebatchDataset(dataset, split_batch_by)  # pylint: disable=protected-access
+      except errors.InvalidArgumentError as e:
+        if "without encountering a batch" in str(e):
+          six.reraise(
+              ValueError,
+              ValueError(
+                  "Call the `batch` method on the input Dataset in order to be "
+                  "able to split your input across {} replicas.\n Please "
+                  "the tf.distribute.Strategy guide. {}".format(
+                      split_batch_by, e)),
+              sys.exc_info()[2])
+        else:
+          raise
 
     self._cloned_datasets = []
     if input_context:
@@ -943,3 +965,4 @@ class MultiStepContext(object):
             distribution.experimental_local_results(value))
       distribution_strategy_context.get_replica_context().merge_call(
           merge_fn, args=(output,))
+

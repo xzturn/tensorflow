@@ -12,14 +12,28 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+#ifndef TENSORFLOW_C_TF_ATTRTYPE_H_
+#define TENSORFLOW_C_TF_ATTRTYPE_H_
 
-#include "tensorflow/compiler/tf2xla/rearrange_function_argument_pass.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-namespace tensorflow {
+// TF_AttrType describes the type of the value of an attribute on an operation.
+typedef enum TF_AttrType {
+  TF_ATTR_STRING = 0,
+  TF_ATTR_INT = 1,
+  TF_ATTR_FLOAT = 2,
+  TF_ATTR_BOOL = 3,
+  TF_ATTR_TYPE = 4,
+  TF_ATTR_SHAPE = 5,
+  TF_ATTR_TENSOR = 6,
+  TF_ATTR_PLACEHOLDER = 7,
+  TF_ATTR_FUNC = 8,
+} TF_AttrType;
 
-// This pass is required for some AOT backends and all JIT backends, so this
-// file exists as a separate lib and will be linked to both AOT and JIT.
-REGISTER_OPTIMIZATION(OptimizationPassRegistry::PRE_PLACEMENT, 28,
-                      RearrangeFunctionArgumentPass);
+#ifdef __cplusplus
+} /* end extern "C" */
+#endif
 
-}  // namespace tensorflow
+#endif  // TENSORFLOW_C_TF_ATTRTYPE_H_
