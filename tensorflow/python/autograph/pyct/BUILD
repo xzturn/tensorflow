@@ -1,4 +1,6 @@
-licenses(["notice"])  # Apache 2.0
+package(
+    licenses = ["notice"],  # Apache 2.0
+)
 
 exports_files(["LICENSE"])
 
@@ -81,6 +83,18 @@ py_test(
 py_test(
     name = "compiler_test",
     srcs = ["compiler_test.py"],
+    python_version = "PY2",
+    srcs_version = "PY2AND3",
+    deps = [
+        ":pyct",
+        "//tensorflow/python:client_testlib",
+        "@gast_archive//:gast",
+    ],
+)
+
+py_test(
+    name = "errors_test",
+    srcs = ["errors_test.py"],
     python_version = "PY2",
     srcs_version = "PY2AND3",
     deps = [

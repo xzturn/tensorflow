@@ -12,20 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-#ifndef TENSORFLOW_LITE_KERNELS_TFLITE_WITH_RUY_H_
-#define TENSORFLOW_LITE_KERNELS_TFLITE_WITH_RUY_H_
 
-#if (defined TFLITE_WITH_RUY_EXPLICIT_TRUE) && \
-    (defined TFLITE_WITH_RUY_EXPLICIT_FALSE)
-#error TFLITE_WITH_RUY_EXPLICIT_TRUE and TFLITE_WITH_RUY_EXPLICIT_FALSE should not be simultaneously defined.
-#endif
+#include "tensorflow/c/tf_datatype.h"
 
-#if defined TFLITE_WITH_RUY_EXPLICIT_TRUE
-#define TFLITE_WITH_RUY
-#elif defined TFLITE_WITH_RUY_EXPLICIT_FALSE
-// Leave TFLITE_WITH_RUY undefined
-#else
-// For now leave TFLITE_WITH_RUY undefined, could change defaults here later.
-#endif
+#include "tensorflow/core/framework/types.h"
 
-#endif  // TENSORFLOW_LITE_KERNELS_TFLITE_WITH_RUY_H_
+size_t TF_DataTypeSize(TF_DataType dt) {
+  return static_cast<size_t>(
+      tensorflow::DataTypeSize(static_cast<tensorflow::DataType>(dt)));
+}

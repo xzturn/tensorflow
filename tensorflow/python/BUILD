@@ -1501,6 +1501,7 @@ cuda_py_test(
         "noasan",
         "optonly",
     ],
+    xla_enable_strict_auto_jit = True,
 )
 
 tf_py_test(
@@ -2462,6 +2463,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":platform",
+        ":util",
     ],
 )
 
@@ -2971,6 +2973,7 @@ cuda_py_test(
         "@absl_py//absl/testing:parameterized",
         "//tensorflow/python:client_testlib",
     ],
+    xla_enable_strict_auto_jit = True,
 )
 
 py_library(
@@ -6447,6 +6450,8 @@ cuda_py_test(
     tags = [
         "grappler",
     ],
+    # This test analyzes the graph, but XLA changes the names of nodes.
+    xla_enable_strict_auto_jit = False,
 )
 
 tf_gen_op_wrapper_private_py(

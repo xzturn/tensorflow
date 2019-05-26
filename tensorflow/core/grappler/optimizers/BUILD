@@ -1,4 +1,6 @@
-licenses(["notice"])  # Apache 2.0
+package(
+    licenses = ["notice"],  # Apache 2.0
+)
 
 load("//tensorflow:tensorflow.bzl", "tf_cc_test", "tf_kernel_library")
 load("//tensorflow:tensorflow.bzl", "tf_cc_test_mkl")
@@ -809,6 +811,10 @@ tf_cuda_cc_test(
 tf_cc_test_mkl(
     name = "mkl_remapper_test",
     srcs = ["mkl_remapper_test.cc"],
+    tags = [
+        "no_mac",
+        "no_oss",
+    ],
     deps = [
         ":remapper",
         "//tensorflow/cc:cc_ops",
