@@ -12,29 +12,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+#include "tensorflow/core/common_runtime/input_colocation_exemption_registry.h"
 
-#if GOOGLE_CUDA
-#if GOOGLE_TENSORRT
-
-#include "tensorflow/core/framework/common_shape_fns.h"
-#include "tensorflow/core/framework/op.h"
-#include "tensorflow/core/framework/shape_inference.h"
-#include "tensorflow/core/framework/tensor_shape.h"
+#include "tensorflow/core/platform/test.h"
 
 namespace tensorflow {
+namespace {
 
-REGISTER_OP("GetSerializedResourceOp")
-    .Input("container: string")
-    .Input("resource_name: string")
-    .Output("serialized_resource: string")
-    .SetShapeFn(shape_inference::ScalarShape)
-    .SetIsStateful()
-    .Doc(R"doc(
-Gets a resource from a container managed by the resource manager and returns
-its serialized representation.
-)doc");
+REGISTER_INPUT_COLOCATION_EXEMPTION("op 1");
+REGISTER_INPUT_COLOCATION_EXEMPTION("op 2");
+
+}  // namespace
+
+TEST(RPCFactoryRegistryTest, TestBasic) {
+  auto exempt_ops = InputColocationExemptionRegistry::Global()->Get();
+  EXPECT_EQ(exempt_ops.size(), 2);
+  EXPECT_NE(exempt_ops.find("op 1"), exempt_ops.end());
+  EXPECT_NE(exempt_ops.find("op 2"), exempt_ops.end());
+  EXPECT_EQ(exempt_ops.find("op 3"), exempt_ops.end());
+}
 
 }  // namespace tensorflow
-
-#endif  // GOOGLE_TENSORRT
-#endif  // GOOGLE_CUDA
