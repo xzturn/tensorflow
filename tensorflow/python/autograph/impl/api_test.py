@@ -30,6 +30,7 @@ import types
 import numpy as np
 
 from tensorflow.python.autograph import utils
+from tensorflow.python.autograph.core import ag_ctx
 from tensorflow.python.autograph.core import converter
 from tensorflow.python.autograph.impl import api
 from tensorflow.python.autograph.pyct import inspect_utils
@@ -179,38 +180,34 @@ class ApiTest(test.TestCase):
 
     class TestClass(object):
 
-      def called_member(self, a):
+      def test_method(self, a):
         if a < 0:
           a = -a
         return a
 
-      called_member_converted = api.convert()(called_member)
+      test_method_converted = api.convert()(test_method)
 
     tc = TestClass()
     self.assertListEqual(
-        list(tf_inspect.getfullargspec(tc.called_member)),
-        list(tf_inspect.getfullargspec(tc.called_member_converted)))
+        list(tf_inspect.getfullargspec(tc.test_method)),
+        list(tf_inspect.getfullargspec(tc.test_method_converted)))
 
-  @test_util.run_deprecated_v1
-  def test_do_not_convert_preserves_argspec(self):
+  def test_do_not_convert_argspec(self):
 
     class TestClass(object):
 
-      @api.do_not_convert(run_as=api.RunMode.GRAPH)
       def test_method(self, x, y):
         z = x + y
         return z
 
-      test_method_do_not_convert = api.do_not_convert(
-          run_as=api.RunMode.GRAPH)(test_method)
+      test_method_whitelisted = api.do_not_convert(test_method)
 
     tc = TestClass()
-    self.assertTrue(tf_inspect.ismethod(tc.test_method_do_not_convert))
-    self.assertAllEqual(('x', 'y'), function_utils.fn_args(
-        tc.test_method_do_not_convert))
-    self.assertListEqual(
-        list(tf_inspect.getfullargspec(tc.test_method)),
-        list(tf_inspect.getfullargspec(tc.test_method_do_not_convert)))
+    self.assertTrue(tf_inspect.ismethod(tc.test_method_whitelisted))
+    # Because the wrapped function is not generated, we can't preserve its
+    # arg spec.
+    self.assertEqual((),
+                     tuple(function_utils.fn_args(tc.test_method_whitelisted)))
 
   @test_util.run_deprecated_v1
   def test_convert_call_site_decorator(self):
@@ -669,6 +666,27 @@ class ApiTest(test.TestCase):
 
     self.assertNoMemoryLeaks(test_fn)
 
+  def test_context_tracking_direct_calls(self):
+
+    @api.do_not_convert()
+    def unconverted_fn():
+      self.assertEqual(
+          ag_ctx.control_status_ctx().status, ag_ctx.Status.DISABLED)
+
+    @api.convert()
+    def converted_fn():
+      self.assertEqual(
+          ag_ctx.control_status_ctx().status, ag_ctx.Status.ENABLED)
+      unconverted_fn()
+      self.assertEqual(
+          ag_ctx.control_status_ctx().status, ag_ctx.Status.ENABLED)
+
+    self.assertEqual(
+        ag_ctx.control_status_ctx().status, ag_ctx.Status.UNSPECIFIED)
+    converted_fn()
+    self.assertEqual(
+        ag_ctx.control_status_ctx().status, ag_ctx.Status.UNSPECIFIED)
+
   def test_to_graph_basic(self):
 
     def test_fn(x, s):
@@ -769,8 +787,7 @@ class ApiTest(test.TestCase):
 
     self.assertNotEqual(converted_recursive.ag_module,
                         converted_non_recursive.ag_module)
-    self.assertIn('internal_convert_user_code=True',
-                  tf_inspect.getsource(converted_recursive))
+    self.assertIn('ag__.STD', tf_inspect.getsource(converted_recursive))
     self.assertNotIn('internal_convert_user_code=False',
                      tf_inspect.getsource(converted_recursive))
     self.assertIn('internal_convert_user_code=False',

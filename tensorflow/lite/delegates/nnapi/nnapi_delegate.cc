@@ -93,6 +93,12 @@ bool IsScalarInputSupported(int builtin_code) {
     case kTfLiteBuiltinMul:
     case kTfLiteBuiltinSub:
     case kTfLiteBuiltinDiv:
+    case kTfLiteBuiltinEqual:
+    case kTfLiteBuiltinNotEqual:
+    case kTfLiteBuiltinGreater:
+    case kTfLiteBuiltinGreaterEqual:
+    case kTfLiteBuiltinLess:
+    case kTfLiteBuiltinLessEqual:
       return true;
     default:
       return false;
@@ -953,13 +959,20 @@ class NNAPIDelegateKernel {
       case kTfLiteBuiltinResizeBilinear:
         if (version == 1) {
           const auto& input = context->tensors[node->inputs->data[0]];
+          const auto output_dims =
+              context->tensors[node->outputs->data[0]].dims;
           if (input.dims->size != 4) return nullptr;
           if (input.type != kTfLiteFloat32 && input.type != kTfLiteUInt8) {
             return nullptr;
           }
           if (android_sdk_version < kMinSdkVersionForNNAPI12 &&
+              output_dims->data[1] != output_dims->data[2]) {
+            // Require width == height due to driver differences in NNAPI < 1.2
+            return nullptr;
+          }
+          if (android_sdk_version < kMinSdkVersionForNNAPI12 &&
               input.type != kTfLiteFloat32) {
-            // NNAPI 1.0 & 11 only supports float input.
+            // NNAPI 1.0 & 1.1 only supports float input.
             return nullptr;
           }
           return [](const NNAPIOpMappingArgs& mapping_args)
@@ -1436,6 +1449,68 @@ class NNAPIDelegateKernel {
         if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
             input_type == kTfLiteBool) {
           return BasicMappingFn<ANEURALNETWORKS_LOGICAL_OR>;
+        }
+      } break;
+      case kTfLiteBuiltinLogicalAnd: {
+        const auto input_type = context->tensors[node->inputs->data[0]].type;
+        if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
+            input_type == kTfLiteBool) {
+          return BasicMappingFn<ANEURALNETWORKS_LOGICAL_AND>;
+        }
+      } break;
+      case kTfLiteBuiltinLogicalNot: {
+        const auto input_type = context->tensors[node->inputs->data[0]].type;
+        if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
+            input_type == kTfLiteBool) {
+          return BasicMappingFn<ANEURALNETWORKS_LOGICAL_NOT>;
+        }
+      } break;
+      case kTfLiteBuiltinLess: {
+        const auto input_type = context->tensors[node->inputs->data[0]].type;
+        if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
+            (input_type == kTfLiteFloat32 || input_type == kTfLiteUInt8 ||
+             input_type == kTfLiteBool || input_type == kTfLiteInt32)) {
+          return BasicMappingFn<ANEURALNETWORKS_LESS>;
+        }
+      } break;
+      case kTfLiteBuiltinLessEqual: {
+        const auto input_type = context->tensors[node->inputs->data[0]].type;
+        if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
+            (input_type == kTfLiteFloat32 || input_type == kTfLiteUInt8 ||
+             input_type == kTfLiteBool || input_type == kTfLiteInt32)) {
+          return BasicMappingFn<ANEURALNETWORKS_LESS_EQUAL>;
+        }
+      } break;
+      case kTfLiteBuiltinGreater: {
+        const auto input_type = context->tensors[node->inputs->data[0]].type;
+        if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
+            (input_type == kTfLiteFloat32 || input_type == kTfLiteUInt8 ||
+             input_type == kTfLiteBool || input_type == kTfLiteInt32)) {
+          return BasicMappingFn<ANEURALNETWORKS_GREATER>;
+        }
+      } break;
+      case kTfLiteBuiltinGreaterEqual: {
+        const auto input_type = context->tensors[node->inputs->data[0]].type;
+        if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
+            (input_type == kTfLiteFloat32 || input_type == kTfLiteUInt8 ||
+             input_type == kTfLiteBool || input_type == kTfLiteInt32)) {
+          return BasicMappingFn<ANEURALNETWORKS_GREATER_EQUAL>;
+        }
+      } break;
+      case kTfLiteBuiltinEqual: {
+        const auto input_type = context->tensors[node->inputs->data[0]].type;
+        if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
+            (input_type == kTfLiteFloat32 || input_type == kTfLiteUInt8 ||
+             input_type == kTfLiteBool || input_type == kTfLiteInt32)) {
+          return BasicMappingFn<ANEURALNETWORKS_EQUAL>;
+        }
+      } break;
+      case kTfLiteBuiltinNotEqual: {
+        const auto input_type = context->tensors[node->inputs->data[0]].type;
+        if (version == 1 && android_sdk_version >= kMinSdkVersionForNNAPI12 &&
+            (input_type == kTfLiteFloat32 || input_type == kTfLiteUInt8 ||
+             input_type == kTfLiteBool || input_type == kTfLiteInt32)) {
+          return BasicMappingFn<ANEURALNETWORKS_NOT_EQUAL>;
         }
       } break;
       default:
