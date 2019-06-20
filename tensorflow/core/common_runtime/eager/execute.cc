@@ -23,6 +23,7 @@ limitations under the License.
 // clang-format on
 
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "tensorflow/core/common_runtime/device.h"
 #include "tensorflow/core/common_runtime/device_set.h"
 #include "tensorflow/core/common_runtime/eager/context.h"
@@ -36,6 +37,7 @@ limitations under the License.
 #include "tensorflow/core/framework/node_def_util.h"
 #include "tensorflow/core/framework/types.pb.h"
 #include "tensorflow/core/lib/core/errors.h"
+#include "tensorflow/core/profiler/lib/traceme.h"
 #if !defined(IS_MOBILE_PLATFORM)
 #include "tensorflow/core/distributed_runtime/eager/eager_client.h"
 #include "tensorflow/core/distributed_runtime/eager/remote_execute_node.h"
@@ -150,8 +152,9 @@ Status MaybeCopyInputToExpectedDevice(EagerOperation* op,
   // trigger a copy.
   auto pre_time_nanos = Env::Default()->NowNanos();
   TensorHandle* result_handle = nullptr;
-  Status status = EagerCopyToDevice(
-      handle, ctx, expected_input_device->name().c_str(), &result_handle);
+  Status status =
+      EagerCopyToDevice(handle, ctx, expected_input_device->name().c_str(),
+                        ctx->MirrorTensors(), &result_handle);
   if (run_metadata != nullptr) {
     auto* step_stats = run_metadata->mutable_step_stats();
     MaybeInitializeStepStats(step_stats, ctx);
@@ -292,6 +295,8 @@ Status AddInputDevicesToCacheKey(const EagerContext* ctx,
                                  const EagerOperation* op,
                                  std::vector<Device*>* input_dev_ptrs,
                                  Fprint128* cache_key) {
+  profiler::TraceMe activity("AddInputDevicesToCacheKey",
+                             profiler::TraceMeLevel::kVerbose);
   input_dev_ptrs->reserve(op->Inputs().size());
   Device* cpu_device = ctx->HostCPU();
   for (TensorHandle* tensor_handle : op->Inputs()) {
@@ -346,6 +351,8 @@ Status AddInputTensorShapesToCacheKey(
     const EagerContext* ctx, const EagerOperation* op,
     std::unordered_map<int, TensorShape>* input_tensor_shapes,
     Fprint128* cache_key) {
+  profiler::TraceMe activity("AddInputTensorShapesToCacheKey",
+                             profiler::TraceMeLevel::kVerbose);
   for (int i = 0; i < op->Inputs().size(); i++) {
     TensorHandle* tensor_handle = op->Inputs()[i];
 
@@ -381,6 +388,8 @@ Status AddInputResourceDtypesAndShapesToCacheKey(
     std::unordered_map<int, std::pair<DataType, TensorShape>>*
         input_resource_dtypes_shapes,
     Fprint128* cache_key) {
+  profiler::TraceMe activity("AddInputResourceDtypesAndShapesToCacheKey",
+                             profiler::TraceMeLevel::kVerbose);
   for (int i = 0; i < op->Inputs().size(); i++) {
     TensorHandle* tensor_handle = op->Inputs()[i];
 
@@ -474,6 +483,9 @@ Status ShouldCompileWithXLA(const EagerOperation* op, const Device* device,
 Status EagerLocalExecute(EagerOperation* op,
                          gtl::InlinedVector<TensorHandle*, 2>* retvals,
                          int* num_retvals) {
+  profiler::TraceMe activity(
+      [&] { return absl::StrCat("EagerLocalExecute: ", op->Name()); },
+      profiler::TraceMeLevel::kInfo);
   const string unspecified_device_name("<unspecified>");
   EagerContext* ctx = op->EagerContext();
   auto status = ctx->GetStatus();
@@ -504,16 +516,20 @@ Status EagerLocalExecute(EagerOperation* op,
     // Once that is the case, we will be able to write a thin wrapper layer over
     // the EagerService that behaves similar to the current
     // ClusterFunctionLibraryRuntime/DistributedFunctionLibraryRuntime.
-    for (int i = 0; i < op->Inputs().size(); i++) {
-      TensorHandle* input = op->Inputs()[i];
-      if (input->IsRemote()) {
-        TensorHandle* handle = nullptr;
-        TF_RETURN_IF_ERROR(EagerCopyToDevice(
-            input, ctx, device == nullptr ? "" : device->name().c_str(),
-            &handle));
-        op->UpdateInput(i, handle);
-        // Unref handle since it has a ref as an input now
-        handle->Unref();
+    {
+      profiler::TraceMe activity("EagerCopyToDevice",
+                                 profiler::TraceMeLevel::kInfo);
+      for (int i = 0; i < op->Inputs().size(); i++) {
+        TensorHandle* input = op->Inputs()[i];
+        if (input->IsRemote()) {
+          TensorHandle* handle = nullptr;
+          TF_RETURN_IF_ERROR(EagerCopyToDevice(
+              input, ctx, device == nullptr ? "" : device->name().c_str(),
+              ctx->MirrorTensors(), &handle));
+          op->UpdateInput(i, handle);
+          // Unref handle since it has a ref as an input now
+          handle->Unref();
+        }
       }
     }
     TF_RETURN_IF_ERROR(
@@ -654,10 +670,10 @@ Status EagerLocalExecute(EagerOperation* op,
           /* resource_device= */ kernel->OutputResourceDevice(i),
           output_dtypes[i], ctx, &(*retvals)[i]));
     }
-    EagerNode* node = new ExecuteNode(id, ctx, op->Inputs(), std::move(kernel),
-                                      maybe_stats.release(), maybe_step_stats,
-                                      graph_collector, output_dtypes, *retvals);
-    ctx->ExecutorAdd(node);
+    std::unique_ptr<EagerNode> node(new ExecuteNode(
+        id, ctx, op->Inputs(), std::move(kernel), maybe_stats.release(),
+        maybe_step_stats, graph_collector, output_dtypes, *retvals));
+    ctx->ExecutorAdd(std::move(node));
   } else {
     // Execute checks if retvals[i] is nullptr or not to figure if it needs to
     // allocate it.
@@ -677,11 +693,20 @@ Status EagerLocalExecute(EagerOperation* op,
 // this function enables sending tensors using the EagerService.SendTensor RPC
 // *on the receiver*.
 Status EagerRemoteSendTensor(EagerContext* ctx, TensorHandle* h,
-                             Device* recv_device, TensorHandle** result) {
+                             Device* recv_device, bool mirror,
+                             TensorHandle** result) {
 #if defined(IS_MOBILE_PLATFORM)
   return errors::Unimplemented(
       "Eager's remote execution is not available on mobile devices.");
 #else   // !IS_MOBILE_PLATFORM
+  if (mirror) {
+    if (h->HasRemoteMirror(recv_device)) {
+      h->Ref();
+      *result = h;
+      return Status::OK();
+    }
+  }
+
   eager::EagerClient* eager_client;
   uint64 context_id;
   TF_RETURN_IF_ERROR(
@@ -703,7 +728,10 @@ Status EagerRemoteSendTensor(EagerContext* ctx, TensorHandle* h,
   TensorHandle* actual_handle;
   if (tensor_handle_device != nullptr &&
       tensor_handle_device->device_type() != "CPU") {
-    TF_RETURN_IF_ERROR(h->CopyToDevice(ctx, ctx->HostCPU(), &actual_handle));
+    Tensor tensor;
+    TF_RETURN_IF_ERROR(h->CopyToDevice(ctx, ctx->HostCPU(), &tensor));
+    TF_RETURN_IF_ERROR(
+        TensorHandle::CreateLocalHandle(tensor, nullptr, ctx, &actual_handle));
   } else {
     actual_handle = h;
     actual_handle->Ref();
@@ -726,9 +754,17 @@ Status EagerRemoteSendTensor(EagerContext* ctx, TensorHandle* h,
   n.WaitForNotification();
   if (!status.ok()) return status;
 
-  status = TensorHandle::CreateRemoteHandle(
-      id, 0, tensor->shape(), eager_client, context_id, tensor->dtype(),
-      recv_device, nullptr, ctx, result);
+  auto tensor_handle_data = absl::make_unique<RemoteTensorHandleData>(
+      id, 0, tensor->shape(), eager_client, context_id, ctx);
+  if (mirror) {
+    status = h->AddRemoteMirror(std::move(tensor_handle_data), recv_device);
+    h->Ref();
+    *result = h;
+  } else {
+    status = TensorHandle::CreateRemoteHandle(std::move(tensor_handle_data),
+                                              tensor->dtype(), recv_device,
+                                              nullptr, ctx, result);
+  }
 
   actual_handle->Unref();
 
@@ -757,6 +793,7 @@ Status EagerRemoteExecute(EagerOperation* op, TensorHandle** retvals,
   auto* remote_op = request->add_queue()->mutable_operation();
 
   for (int i = 0; i < op->Inputs().size(); i++) {
+    tensorflow::TensorHandle* input = op->Inputs()[i];
     tensorflow::Device* input_device = op->Inputs()[i]->device();
     if (op->Device() != input_device &&
         // If the expected and actual devices are on the same task, don't
@@ -776,15 +813,15 @@ Status EagerRemoteExecute(EagerOperation* op, TensorHandle** retvals,
           op, op->Device()->name(), i, remote_cpu_device,
           /* run_metadata= */ nullptr, &handle));
       op->UpdateInput(i, handle);
+      input = handle;
       // Unref handle since it has a ref as an input now
       handle->Unref();
     }
 
-    tensorflow::TensorHandle* input = op->Inputs()[i];
-
     tensorflow::int64 op_id;
     int32 output_num;
-    TF_RETURN_IF_ERROR(input->RemoteAddress(&op_id, &output_num));
+    TF_RETURN_IF_ERROR(
+        input->RemoteAddress(input->device(), &op_id, &output_num));
 
     auto* remote_op_input = remote_op->add_inputs();
     remote_op_input->set_op_id(op_id);
@@ -849,8 +886,10 @@ Status EagerRemoteExecute(EagerOperation* op, TensorHandle** retvals,
       handle->Ref();
     }
 
+    // TODO(gjn): If the retval TensorHandle is simply going to be used as a
+    // mirror then there should be no need to call SetRemoteShape
     // Unable to capture via std::move, so bind instead.
-    auto* node = new eager::RemoteExecuteNode(
+    std::unique_ptr<EagerNode> node(new eager::RemoteExecuteNode(
         remote_node_id, std::move(request), eager_client,
         std::bind(
             [inputs](const gtl::InlinedVector<TensorHandle*, 2>& retvals,
@@ -858,8 +897,11 @@ Status EagerRemoteExecute(EagerOperation* op, TensorHandle** retvals,
                      const eager::EnqueueResponse& response) {
               for (int i = 0; i < retvals.size(); i++) {
                 if (status.ok()) {
-                  retvals[i]->SetRemoteShape(
+                  Status s = retvals[i]->SetRemoteShape(
                       response.queue_response(0).shape(i));
+                  if (!s.ok()) {
+                    retvals[i]->Poison(s);
+                  }
                 } else {
                   retvals[i]->Poison(status);
                 }
@@ -870,8 +912,8 @@ Status EagerRemoteExecute(EagerOperation* op, TensorHandle** retvals,
               }
             },
             std::move(retvals_copy), std::placeholders::_1,
-            std::placeholders::_2));
-    op->EagerContext()->ExecutorAdd(node);
+            std::placeholders::_2)));
+    op->EagerContext()->ExecutorAdd(std::move(node));
   } else {
     Notification n;
     Status status;
@@ -1011,6 +1053,9 @@ Status MaybeUpdateOpDevice(EagerOperation* op) {
 Status EagerExecute(EagerOperation* op,
                     gtl::InlinedVector<TensorHandle*, 2>* retvals,
                     int* num_retvals) {
+  profiler::TraceMe activity(
+      [&] { return absl::StrCat("EagerExecute: ", op->Name()); },
+      profiler::TraceMeLevel::kInfo);
   TF_RETURN_IF_ERROR(MaybeUpdateOpDevice(op));
 
   bool op_is_local = op->EagerContext()->IsLocal(op->Device());
@@ -1036,6 +1081,8 @@ Status EagerKernelExecute(EagerContext* ctx,
                           StepStats* maybe_step_stats,
                           GraphCollector* graph_collector,
                           TensorHandle** retvals, int num_retvals) {
+  profiler::TraceMe activity("EagerKernelExecute",
+                             profiler::TraceMeLevel::kInfo);
   std::vector<Tensor> outputs(1);
 
   // If there are multiple references to a TensorHandle in 'op_inputs' we must
@@ -1149,7 +1196,7 @@ Status EagerKernelExecute(EagerContext* ctx,
       DCHECK_EQ(kernel->device(), retvals[i]->op_device());
       DCHECK_EQ(kernel->OutputDevice(i), retvals[i]->device());
 
-      retvals[i]->SetTensor(outputs[i]);
+      TF_RETURN_IF_ERROR(retvals[i]->SetTensor(outputs[i]));
     }
   }
   return Status::OK();
@@ -1161,17 +1208,22 @@ Status LocalEagerCopyToDevice(TensorHandle* h, EagerContext* ctx, Device* dstd,
                               TensorHandle** result) {
   TF_RETURN_IF_ERROR(ctx->GetStatus());
   if (ctx->Async()) {
+    TF_RETURN_IF_ERROR(TensorHandle::CreateAsyncLocalHandle(
+        dstd, dstd, nullptr, h->dtype, ctx, result));
     // Note that `h` may not be currently ready. However execution order will
     // make sure that `h` is ready before the copy is actually done.
-    CopyToDeviceNode* node = new CopyToDeviceNode(h, dstd, ctx);
-    TensorHandle* output = node->dst();
+    std::unique_ptr<EagerNode> node(
+        new CopyToDeviceNode(h, *result, dstd, ctx));
     // Note that calling Add makes `node` accessible by the EagerExecutor
     // thread. So further accesses need to be thread-safe.
-    ctx->ExecutorAdd(node);
-    *result = output;
+    ctx->ExecutorAdd(std::move(node));
     return Status::OK();
   } else {
-    TF_RETURN_IF_ERROR(h->CopyToDevice(ctx, dstd, result));
+    tensorflow::Tensor tensor;
+    TF_RETURN_IF_ERROR(h->CopyToDevice(ctx, dstd, &tensor));
+    const bool dst_cpu = dstd->tensorflow_gpu_device_info() == nullptr;
+    return TensorHandle::CreateLocalHandle(tensor, dst_cpu ? nullptr : dstd,
+                                           ctx, result);
     return Status::OK();
   }
 }
@@ -1250,7 +1302,8 @@ string GetUniqueWireID() {
 }  // namespace
 
 Status EagerCopyToDevice(TensorHandle* h, EagerContext* ctx,
-                         const char* device_name, TensorHandle** result) {
+                         const char* device_name, bool mirror,
+                         TensorHandle** result) {
   tensorflow::Device* send_device = h->device();
 
   if (send_device == nullptr) {
@@ -1267,7 +1320,7 @@ Status EagerCopyToDevice(TensorHandle* h, EagerContext* ctx,
   if (sender_is_local && recver_is_local) {
     return LocalEagerCopyToDevice(h, ctx, recv_device, result);
   } else if (ctx->UseSendTensorRPC() && sender_is_local && !recver_is_local) {
-    return EagerRemoteSendTensor(ctx, h, recv_device, result);
+    return EagerRemoteSendTensor(ctx, h, recv_device, mirror, result);
   } else {
     string wire_id = GetUniqueWireID();
 
