@@ -13,6 +13,7 @@ visibility = [
     "//tensorflow_model_optimization:__subpackages__",
     "//third_party/py/cleverhans:__subpackages__",
     "//third_party/py/tensorflow_examples:__subpackages__",
+    "//third_party/py/tf_slim:__subpackages__",
     # TODO(aselle): to pass open source test.
     "//bazel_pip/tensorflow/lite/toco/python:__pkg__",
 ]
@@ -3080,6 +3081,13 @@ py_library(
 )
 
 py_library(
+    name = "op_selector",
+    srcs = ["ops/op_selector.py"],
+    srcs_version = "PY2AND3",
+    deps = [":framework_ops"],
+)
+
+py_library(
     name = "math_ops",
     srcs = ["ops/math_ops.py"],
     srcs_version = "PY2AND3",
@@ -3876,6 +3884,20 @@ cuda_py_test(
         "//third_party/py/numpy",
     ],
     xla_enable_strict_auto_jit = True,
+)
+
+py_test(
+    name = "op_selector_test",
+    srcs = ["ops/op_selector_test.py"],
+    python_version = "PY2",
+    srcs_version = "PY2AND3",
+    deps = [
+        ":client_testlib",
+        ":constant_op",
+        ":framework_ops",
+        ":math_ops",
+        ":op_selector",
+    ],
 )
 
 cuda_py_test(
@@ -6666,6 +6688,18 @@ py_library(
     name = "tf2",
     srcs = ["tf2.py"],
     srcs_version = "PY2AND3",
+)
+
+py_test(
+    name = "tf2_test",
+    srcs = ["framework/tf2_test.py"],
+    python_version = "PY3",
+    srcs_version = "PY2AND3",
+    deps = [
+        ":client_testlib",
+        ":tf2",
+        "//tensorflow/python/distribute:combinations",
+    ],
 )
 
 cuda_py_test(

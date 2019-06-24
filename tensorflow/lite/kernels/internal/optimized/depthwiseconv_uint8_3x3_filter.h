@@ -27,7 +27,14 @@ namespace tflite {
 namespace optimized_ops {
 namespace depthwise_conv {
 
-#ifdef USE_NEON
+#define STR(s) STR_UNEXPANDED(s)
+#define STR_UNEXPANDED(s) #s
+
+// Enable for arm64 except for the Nvidia Linux 4 Tegra (L4T) running on
+// Jetson TX-2. This compiler does not support the offsetof() macro.
+#if defined(__aarch64__) && !defined(GOOGLE_L4T)
+#include <stddef.h>
+
 // Lane operations are for clarity and convenience. We want to load and store
 // 4 8-bit lanes together. So these are treated much like 32-bit loads and
 // 32-bit stores. Stores require 32-bit alignment.
@@ -52,14 +59,6 @@ namespace depthwise_conv {
 #define vld1q_lane_8x4(src, reg, lane_num) \
   vld1q_lane_s32(reinterpret_cast<const int32*>(src), reg, lane_num)
 #define vld1q_dup_s8x4(src) vld1q_dup_s32(reinterpret_cast<const int32*>(src))
-
-#define STR(s) STR_UNEXPANDED(s)
-#define STR_UNEXPANDED(s) #s
-
-// Enable for arm64 except for the Nvidia Linux 4 Tegra (L4T) running on
-// Jetson TX-2. This compiler does not support the offsetof() macro.
-#if defined(__aarch64__) && !defined(GOOGLE_L4T)
-#include <stddef.h>
 
 // Represents the number of bytes offset from the start of the
 // DepthwiseConvParams struct. This is used in the asm to load parameters.
@@ -135,11 +134,7 @@ static_assert(offsetof(DepthwiseConvParams, output_width) ==
 static_assert(offsetof(DepthwiseConvParams, output_height) ==
                   OFFSET_OUTPUT_HEIGHT,
               "");
-#endif  // __aarch64__
-#endif  // ARM NEON
 
-#ifdef USE_NEON
-#if defined(__aarch64__) && !defined(GOOGLE_L4T)
 // Dot product ops hard-coded
 
 // Represents the number of bytes offset from the start of the
@@ -5757,15 +5752,13 @@ inline void DepthwiseConv3x3Filter(
 }
 #endif  // __aarch64__
 
-#endif
-
 // Perform any necessary cache hinting and pre-writing.
 template <DepthwiseConvImplementation implementation>
 struct WorkspacePrefetchWrite {
   static inline void Run(int8 fill_data, int size, int8* workspace) {}
 };
 
-#if defined(USE_NEON) && defined(__aarch64__)
+#if defined(__aarch64__)
 // Encourage the processor to keep the workspace in cache. Both the cache hint
 // and some memory writes are required.
 //
@@ -5791,7 +5784,7 @@ struct WorkspacePrefetchWrite<
   }
 };
 
-#endif  // USE_NEON &&__aarch64__
+#endif  // __aarch64__
 
 #if defined(__aarch64__) && !defined(GOOGLE_L4T)
 // Dot product ops hard-coded
@@ -7209,6 +7202,7 @@ struct KernelMacroBlock<DepthwiseConvImplementation::kUseNeon3x3DotProduct,
 #define DC_KERNEL_NO_MULT_25 "25"
 #define DC_KERNEL_NO_MULT_26 "26"
 
+#ifdef __linux__
     asm volatile(
         // Compiled code used block of 288 for spill out of total stack of 448.
         // However, two 4-byte spills were sneaked in to #360 and #364.
@@ -7834,6 +7828,7 @@ struct KernelMacroBlock<DepthwiseConvImplementation::kUseNeon3x3DotProduct,
         "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
         "x16", "x17", "x19", "x21", "x22", "x23", "x24", "x25", "x26", "x27",
         "x28", "x29", "x30");
+#endif  // __linux__
   }  // NOLINT(readability/fn_size) Manually unrolled.
 
 #undef DC_KERNEL_NO_MULT_1
@@ -7906,6 +7901,7 @@ struct KernelMacroBlock<DepthwiseConvImplementation::kUseNeon3x3DotProduct,
 #define DC_KERNEL_NO_MULT_STRIDE_18 "18"
 #define DC_KERNEL_NO_MULT_STRIDE_19 "19"
 
+#ifdef __linux__
     asm volatile(
         // Compiled code used block of 48 for spill out of total stack of 208.
         // However, an 8-byte spill was sneaked in to #120.
@@ -8257,6 +8253,7 @@ struct KernelMacroBlock<DepthwiseConvImplementation::kUseNeon3x3DotProduct,
         "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
         "x16", "x17", "x19", "x21", "x22", "x23", "x24", "x25", "x26", "x27",
         "x28", "x29", "x30");
+#endif  // __linux__
   }  // NOLINT(readability/fn_size) Manually unrolled.
 
 #undef DC_KERNEL_NO_MULT_STRIDE_1
@@ -8325,6 +8322,7 @@ struct KernelMacroBlock<DepthwiseConvImplementation::kUseNeon3x3DotProduct,
 #define DC_KERNEL_MULT_21 "21"
 #define DC_KERNEL_MULT_22 "22"
 
+#ifdef __linux__
     asm volatile(
         // Compiled code used block of 160 for spill out of total stack of 288.
         // However, an 8-byte spill was sneaked in to #168.
@@ -8886,6 +8884,7 @@ struct KernelMacroBlock<DepthwiseConvImplementation::kUseNeon3x3DotProduct,
         "x5", "x6", "x7", "x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15",
         "x16", "x17", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
         "x27", "x28", "x29", "x30");
+#endif  // __linux__
   }  // NOLINT(readability/fn_size) Manually unrolled.
 
 #undef DC_KERNEL_MULT_1

@@ -61,6 +61,17 @@ _BaseSlice = slice
 def identity(input, name=None):  # pylint: disable=redefined-builtin
   r"""Return a tensor with the same shape and contents as input.
 
+  For example:
+
+  ```python
+  import tensorflow as tf
+  val0 = tf.ones((1,), dtype=tf.float32)
+  a = tf.atan2(val0, val0)
+  a_identity = tf.identity(a)
+  print(a.numpy())          #[0.7853982]
+  print(a_identity.numpy()) #[0.7853982]
+  ```
+
   Args:
     input: A `Tensor`.
     name: A name for the operation (optional).
@@ -689,12 +700,12 @@ def slice(input_, begin, size, name=None):
   # pylint: disable=redefined-builtin
   """Extracts a slice from a tensor.
 
-  This operation extracts a slice of size `size` from a tensor `input` starting
+  This operation extracts a slice of size `size` from a tensor `input_` starting
   at the location specified by `begin`. The slice `size` is represented as a
   tensor shape, where `size[i]` is the number of elements of the 'i'th dimension
-  of `input` that you want to slice. The starting location (`begin`) for the
-  slice is represented as an offset in each dimension of `input`. In other
-  words, `begin[i]` is the offset into the 'i'th dimension of `input` that you
+  of `input_` that you want to slice. The starting location (`begin`) for the
+  slice is represented as an offset in each dimension of `input_`. In other
+  words, `begin[i]` is the offset into the i'th dimension of `input_` that you
   want to slice from.
 
   Note that `tf.Tensor.__getitem__` is typically a more pythonic way to
@@ -705,7 +716,7 @@ def slice(input_, begin, size, name=None):
   all remaining elements in dimension i are included in the
   slice. In other words, this is equivalent to setting:
 
-  `size[i] = input.dim_size(i) - begin[i]`
+  `size[i] = input_.dim_size(i) - begin[i]`
 
   This operation requires that:
 
@@ -731,7 +742,7 @@ def slice(input_, begin, size, name=None):
     name: A name for the operation (optional).
 
   Returns:
-    A `Tensor` the same type as `input`.
+    A `Tensor` the same type as `input_`.
   """
   return gen_array_ops._slice(input_, begin, size, name=name)
 
@@ -2258,7 +2269,16 @@ def zeros_like_v2(
 
   ```python
   tensor = tf.constant([[1, 2, 3], [4, 5, 6]])
-  tf.zeros_like(tensor)  # [[0, 0, 0], [0, 0, 0]]
+  tf.zeros_like(tensor)  # [[0, 0, 0], [0, 0, 0]] with dtype=int32
+
+  If dtype of input `tensor` is `float32`, then the output is also of `float32`
+  tensor = tf.constant([[1.0, 2.0, 3.0], [4, 5, 6]])
+  tf.zeros_like(tensor)  # [[0., 0., 0.], [0., 0., 0.]] with dtype=floa32
+
+  If you want to specify desired dtype of output `tensor`, then specify it in
+  the op tensor = tf.constant([[1.0, 2.0, 3.0], [4, 5, 6]])
+  tf.zeros_like(tensor,dtype=tf.int32)  # [[0, 0, 0], [0, 0, 0]] with
+  dtype=int32
   ```
 
   Args:
@@ -3609,11 +3629,14 @@ def where_v2(condition, x=None, y=None, name=None):
   elements. Keep in mind, the shape of the output tensor can vary depending on
   how many true values there are in input. Indices are output in row-major
   order.
+
   If both non-None, `condition`, `x` and `y` must be broadcastable to the same
   shape.
+
   The `condition` tensor acts as a mask that chooses, based on the value at each
   element, whether the corresponding element / row in the output should be taken
   from `x` (if true) or `y` (if false).
+
   Args:
     condition: A `Tensor` of type `bool`
     x: A Tensor which is of the same type as `y`, and may be broadcastable with
@@ -3624,8 +3647,9 @@ def where_v2(condition, x=None, y=None, name=None):
 
   Returns:
     A `Tensor` with the same type as `x` and `y`, and shape that
-      is broadcasted from `condition`, `x`, and `y`, if `x`, `y` are non-None.
+      is broadcast from `condition`, `x`, and `y`, if `x`, `y` are non-None.
     A `Tensor` with shape `(num_true, dim_size(condition))`.
+
   Raises:
     ValueError: When exactly one of `x` or `y` is non-None.
   """

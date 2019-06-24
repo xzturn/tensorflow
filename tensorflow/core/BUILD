@@ -2493,7 +2493,6 @@ cc_library(
             "lib/**/*.cc",
             "platform/*.cc",
             "platform/profile_utils/**/*.cc",
-            "framework/resource_handle.cc",
             "util/env_var.cc",
         ],
         exclude = [
@@ -2938,7 +2937,6 @@ tf_cuda_library(
             "framework/fake_input.*",
             "framework/op_gen_lib.*",
             "framework/reader_base.*",
-            "framework/resource_handle.cc",
             "util/memmapped_file_system.*",
             "util/memmapped_file_system_writer.*",
             "util/stats_calculator.*",
@@ -3350,6 +3348,7 @@ tf_cuda_library(
         ":lib",
         ":proto_text",
         ":protos_all_cc",
+        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
         "//tensorflow/core/grappler:grappler_item",
         "//tensorflow/core/grappler/clusters:utils",
@@ -4740,6 +4739,23 @@ tf_cc_test(
         ":lib",
         ":test",
         ":test_main",
+    ],
+)
+
+tf_cc_test(
+    name = "framework_run_handler_test",
+    size = "small",
+    srcs = ["framework/run_handler_test.cc"],
+    linkstatic = tf_kernel_tests_linkstatic(),
+    deps = [
+        ":framework_internal",
+        ":lib",
+        ":lib_internal",
+        ":test",
+        ":test_main",
+        "//third_party/eigen3",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/synchronization",
     ],
 )
 

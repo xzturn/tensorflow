@@ -611,8 +611,8 @@ py_library(
     srcs_version = "PY2AND3",
     visibility = ["//tensorflow:internal"],
     deps = [
-        ":context",
         "//tensorflow/python:framework_ops",
+        "//tensorflow/python:op_selector",
         "@six_archive//:six",
     ],
 )
@@ -681,9 +681,6 @@ tf_py_test(
         ":wrap_function",
         "//tensorflow/python:client_testlib",
         "//tensorflow/python:framework_ops",
-    ],
-    tags = [
-        "no_windows",  # TODO(b/135556470) reenable.
     ],
 )
 
