@@ -264,6 +264,7 @@ cc_library(
         "//tensorflow/core:framework",
         "//tensorflow/core:lib",
         "//tensorflow/core:protos_all_cc",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/types:span",
     ],
 )
@@ -560,6 +561,7 @@ cc_library(
     srcs = [
         "functionalize_control_flow_pass_registration.cc",
     ],
+    visibility = [":friends"],
     deps = [
         ":functionalize_control_flow",
     ],

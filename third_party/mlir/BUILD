@@ -96,6 +96,7 @@ cc_library(
         "lib/Pass/PassTiming.cpp",
     ],
     hdrs = [
+        "include/mlir/Analysis/Verifier.h",
         "include/mlir/Pass/AnalysisManager.h",
         "include/mlir/Pass/Pass.h",
         "include/mlir/Pass/PassInstrumentation.h",
@@ -610,15 +611,14 @@ gentbl(
     tbl_outs = [
         (
             "-gen-rewriters",
-            "include/mlir/SPIRV/Transforms/StdOpsToSPIRVConversion.cpp.inc",
+            "lib/Conversion/StandardToSPIRV/StdOpsToSPIRVConversion.cpp.inc",
         ),
     ],
     tblgen = ":mlir-tblgen",
-    td_file = "include/mlir/SPIRV/Transforms/StdOpsToSPIRVConversion.td",
+    td_file = "lib/Conversion/StandardToSPIRV/StdOpsToSPIRVConversion.td",
     td_srcs = [
         ":SPIRVOpsTdFiles",
-        "include/mlir/IR/OpBase.td",
-        "include/mlir/StandardOps/Ops.td",
+        ":StdOpsTdFiles",
     ],
 )
 
@@ -667,13 +667,16 @@ cc_library(
 cc_library(
     name = "SPIRVConversions",
     srcs = [
-        "include/mlir/SPIRV/Transforms/StdOpsToSPIRVConversion.cpp.inc",
-        "lib/SPIRV/Transforms/StdOpsToSPIRVConversion.cpp",
+        "lib/Conversion/StandardToSPIRV/StdOpsToSPIRVConversion.cpp",
+        "lib/Conversion/StandardToSPIRV/StdOpsToSPIRVConversion.cpp.inc",
     ],
     hdrs = [
         "include/mlir/SPIRV/Passes.h",
     ],
-    includes = ["include"],
+    includes = [
+        "include",
+        "lib/Conversion/StandardToSPIRV",
+    ],
     deps = [
         ":IR",
         ":Pass",
@@ -910,6 +913,7 @@ cc_library(
         "include/mlir/Analysis/SliceAnalysis.h",
         "include/mlir/Analysis/Utils.h",
         "include/mlir/Analysis/VectorAnalysis.h",
+        "include/mlir/Analysis/Verifier.h",
     ],
     includes = ["include"],
     deps = [
@@ -1094,6 +1098,7 @@ cc_library(
     hdrs = ["include/mlir/Support/TranslateClParser.h"],
     includes = ["include"],
     deps = [
+        ":Analysis",
         ":IR",
         ":Parser",
         ":Support",

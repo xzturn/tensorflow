@@ -1,7 +1,7 @@
 """Repository rule to setup the external MLIR repository."""
 
-_MLIR_REV = "204b2f14b11d6ea0e181327fed95917cf05992c5"
-_MLIR_SHA256 = "347feacf06b38e053874c13bfe588bb83274697e3d3b30a536b6a237de58c51d"
+_MLIR_REV = "f69c871493a0d3168e8d04a4cc7f1104ac0c41c1"
+_MLIR_SHA256 = "bda910e1a371067a761260cf19030f16f2dea6ed46cea092b6702a3d415d9c9e"
 
 def _mlir_autoconf_impl(repository_ctx):
     """Implementation of the mlir_configure repository rule."""
