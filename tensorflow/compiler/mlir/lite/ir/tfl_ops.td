@@ -585,6 +585,24 @@ def TFL_GatherOp : TFL_Op<"gather", [
   let hasOptions = 1;
 }
 
+def TFL_GatherNdOp : TFL_Op<"gather_nd", [NoSideEffect]> {
+  let summary = "Gather_nd operator";
+
+  let description = [{
+    Gather slices from `params` into a Tensor with shape specified by `indices`.
+  }];
+
+  // TODO: missing Uint8.
+  let arguments = (ins
+    TensorOf<[F32, I8, I64, I32]>:$params,
+    TFL_I32OrI64Tensor:$indices
+  );
+
+  let results = (outs
+    TensorOf<[F32, I8, I64, I32]>:$output
+  );
+}
+
 // Same type check of lhs and rhs is handled by the Broadcastable trait.
 def TFL_LessEqualOp : TFL_Op<"less_equal", [Broadcastable, NoSideEffect]> {
   let summary = "Less_equal operator";
@@ -1018,6 +1036,7 @@ def TFL_LogSoftmaxOp : TFL_Op<"log_softmax", [
     SameOperandsAndResultShape,
     // zero_point = max_value
     // scale = -log_softmax_output_min / (max_value + 1)
+    TFL_FixedResultScale<TFL_Int8UniformQuantizedType<127, 625, -4>>,
     TFL_FixedResultScale<TFL_UInt8UniformQuantizedType<255, 625, -4>>]> {
   let summary = "Log softmax operator";
 
@@ -1626,6 +1645,7 @@ def TFL_SoftmaxOp : TFL_Op<"softmax", [
     SameOperandsAndResultShape,
     // zero_point = 0
     // scale = 1. / (max_value + 1)
+    TFL_FixedResultScale<TFL_Int8UniformQuantizedType<-128, 390625, -8>>,
     TFL_FixedResultScale<TFL_UInt8UniformQuantizedType<0, 390625, -8>>]> {
   let summary = "Softmax operator";
 
@@ -1724,6 +1744,7 @@ def TFL_TanhOp: TFL_Op<"tanh", [
     // central_value = min_value / 2 + (max_value - 1) / 2 + 1
     // zero_point = central_value
     // scale = 1. / (central_value - min_value)
+    TFL_FixedResultScale<TFL_Int8UniformQuantizedType<0, 78125, -7>>,
     TFL_FixedResultScale<TFL_UInt8UniformQuantizedType<128, 78125, -7>>]> {
   let summary = "Hyperbolic tangent operator";
 
