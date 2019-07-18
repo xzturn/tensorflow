@@ -330,15 +330,17 @@ class KerasLayerTest(keras_parameterized.TestCase):
 class KerasModelTest(keras_parameterized.TestCase):
   """Test mixed precision with Keras models."""
 
-  def _is_strategy_supported(self, strategy_fn):
+  def _is_strategy_supported(self, strategy_fn, check_model_type=False):
     if (strategy_fn != default_strategy_fn and
-        testing_utils.should_run_eagerly()):
-      # Distribution strategies do not support running with `run_eagerly=True`
-      # in Keras Models.
+        (testing_utils.should_run_eagerly() or
+         (check_model_type and testing_utils.get_model_type() == 'subclass'))):
+      # Distribution strategies do not support subclassed models or running with
+      # `run_eagerly=True`.
       return False
     else:
       return True
 
+  @keras_parameterized.run_with_all_model_types
   @keras_parameterized.run_all_keras_modes
   @parameterized.named_parameters({
       'testcase_name': 'base',
@@ -361,19 +363,26 @@ class KerasModelTest(keras_parameterized.TestCase):
   })
   def test_model(self, strategy_fn, use_operator=False, use_regularizer=False,
                  cloning=True):
-    if testing_utils.should_run_distributed():
-      self.skipTest('b/137397816')
-    if not self._is_strategy_supported(strategy_fn):
+    if not self._is_strategy_supported(strategy_fn, check_model_type=True):
       return
     regularizer = IdentityRegularizer() if use_regularizer else None
     with strategy_fn().scope():
       with policy.policy_scope('infer_float32_vars'):
-        x = layers.Input(shape=(1,), batch_size=2, dtype=dtypes.float16)
+        layer_list = []
+        if testing_utils.get_model_type() == 'subclass':
+          # Subclassed models do not have an Input layer, so the model does not
+          # cast inputs to the Input layer's dtype. Therefore, we need to
+          # manually insert a float16 cast.
+          cast_f16_layer = layers.Lambda(lambda x: math_ops.cast(x, 'float16'),
+                                         input_shape=(1,))
+          layer_list.append(cast_f16_layer)
         layer = AddLayer(assert_type=dtypes.float16, use_operator=use_operator,
-                         regularizer=regularizer)
-        y = layer(x)
-        y = math_ops.cast(y, dtypes.float32)
-        model = models.Model(inputs=x, outputs=y)
+                         regularizer=regularizer, input_shape=(1,))
+        cast_f32_layer = layers.Lambda(lambda x: math_ops.cast(x, 'float32'))
+        layer_list += [layer, cast_f32_layer]
+        model = testing_utils.get_model_from_layers(layer_list,
+                                                    input_shape=(1,),
+                                                    input_dtype=dtypes.float16)
 
         def loss_fn(y_true, y_pred):
           del y_true
@@ -390,7 +399,6 @@ class KerasModelTest(keras_parameterized.TestCase):
             run_eagerly=testing_utils.should_run_eagerly(),
             run_distributed=testing_utils.should_run_distributed())
 
-    self.assertEqual(backend.eval(layer.v), 1)
     x = np.ones((2, 1))
     y = np.ones((2, 1))
     dataset = dataset_ops.Dataset.from_tensor_slices((x, y)).batch(2)
@@ -416,8 +424,6 @@ class KerasModelTest(keras_parameterized.TestCase):
       'cloning': False,
   })
   def test_fixed_loss_scaling(self, strategy_fn, cloning=True):
-    if testing_utils.should_run_distributed():
-      self.skipTest('b/137397816')
     # Note: We do not test mixed precision in this method, only loss scaling.
     if not self._is_strategy_supported(strategy_fn):
       return
@@ -472,8 +478,6 @@ class KerasModelTest(keras_parameterized.TestCase):
       'use_loss_scaling': True
   })
   def test_advanced_model(self, strategy_fn, use_loss_scaling=False):
-    if testing_utils.should_run_distributed():
-      self.skipTest('b/137397816')
     # The advanced model tests mixed-precision-related features that would occur
     # in a resnet50 model. It tests a model that has:
     #  * Multiple layers, some which use auto-cast variables and some which do
@@ -555,8 +559,6 @@ class KerasModelTest(keras_parameterized.TestCase):
       'cloning': False,
   })
   def test_dynamic_loss_scaling(self, strategy_fn, cloning=True):
-    if testing_utils.should_run_distributed():
-      self.skipTest('b/137397816')
     if not self._is_strategy_supported(strategy_fn):
       return
     strategy = strategy_fn()
@@ -688,8 +690,6 @@ class KerasModelTest(keras_parameterized.TestCase):
   })
   def test_save_slot_variables_with_autocast_vars(self, strategy_fn,
                                                   var_name='v'):
-    if testing_utils.should_run_distributed():
-      self.skipTest('b/137397816')
     if not self._is_strategy_supported(strategy_fn):
       return
     with strategy_fn().scope(), policy.policy_scope('infer_float32_vars'):
@@ -725,8 +725,6 @@ class KerasModelTest(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   @parameterized.named_parameters(*TESTCASES)
   def test_save_weights_with_dynamic_loss_scaling(self, strategy_fn):
-    if testing_utils.should_run_distributed():
-      self.skipTest('b/137397816')
     if not self._is_strategy_supported(strategy_fn):
       return
     strategy = strategy_fn()
