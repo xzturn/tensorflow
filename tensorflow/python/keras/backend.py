@@ -1091,7 +1091,7 @@ def freezable_variable(value, shape=None, name=None):
 
     global _FREEZABLE_VARS
     if graph not in _FREEZABLE_VARS:
-      _FREEZABLE_VARS[graph] = weakref.WeakSet()
+      _FREEZABLE_VARS[graph] = object_identity.ObjectIdentityWeakSet()
     _FREEZABLE_VARS[graph].add(x)
   return x
 
@@ -3477,8 +3477,8 @@ class EagerExecutionFunction(object):
     with exec_graph.as_default():
       for x in self.inputs:
         if x.op.type == 'PlaceholderWithDefault':
-          self._placeholder_default_values[x] = tensor_util.constant_value(
-              x.op.inputs[0])
+          self._placeholder_default_values[ops.tensor_id(
+              x)] = tensor_util.constant_value(x.op.inputs[0])
 
   def __call__(self, inputs):
     input_values = nest.flatten(inputs, expand_composites=True)
@@ -3489,7 +3489,8 @@ class EagerExecutionFunction(object):
     for tensor, value in zip(self._input_references, input_values):
       if value is None:
         # Assume `value` is a placeholder with default
-        value = self._placeholder_default_values.get(tensor, None)
+        value = self._placeholder_default_values.get(
+            ops.tensor_id(tensor), None)
         if value is None:
           raise ValueError(
               'You must feed a value for placeholder %s' % (tensor,))
@@ -4030,17 +4031,19 @@ def in_train_phase(x, alt, training=None):
   if training is None:
     training = learning_phase()
 
-  if training == 1 or training is True:
-    if callable(x):
-      return x()
-    else:
-      return x
+  # TODO(b/138862903): Handle the case when training is tensor.
+  if not tensor_util.is_tensor(training):
+    if training == 1 or training is True:
+      if callable(x):
+        return x()
+      else:
+        return x
 
-  elif training == 0 or training is False:
-    if callable(alt):
-      return alt()
-    else:
-      return alt
+    elif training == 0 or training is False:
+      if callable(alt):
+        return alt()
+      else:
+        return alt
 
   # else: assume learning phase is a placeholder tensor.
   x = switch(training, x, alt)
