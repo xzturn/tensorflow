@@ -1032,7 +1032,7 @@ slice of `params`:
 
     output[\\(i_0, ..., i_{K-2}\\)] = params[indices[\\(i_0, ..., i_{K-2}\\)]]
 
-Whereas in `tf.gather` `indices` defines slices into the first
+Whereas in `tf.gather` `indices` defines slices into the `axis`
 dimension of `params`, in `tf.gather_nd`, `indices` defines slices into the
 first `N` dimensions of `params`, where `N = indices.shape[-1]`.
 
@@ -3000,6 +3000,48 @@ x = [[[[1, 2, 3, 4],
   TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
 }
 
+def TF_SparseToDenseOp : TF_Op<"SparseToDense", [NoSideEffect]> {
+  let summary = "Converts a sparse representation into a dense tensor.";
+
+  let description = [{
+Builds an array `dense` with shape `output_shape` such that
+
+```
+# If sparse_indices is scalar
+dense[i] = (i == sparse_indices ? sparse_values : default_value)
+
+# If sparse_indices is a vector, then for each i
+dense[sparse_indices[i]] = sparse_values[i]
+
+# If sparse_indices is an n by d matrix, then for each i in [0, n)
+dense[sparse_indices[i][0], ..., sparse_indices[i][d-1]] = sparse_values[i]
+```
+
+All other values in `dense` are set to `default_value`.  If `sparse_values` is a
+scalar, all sparse indices are set to this single value.
+
+Indices should be sorted in lexicographic order, and indices must not
+contain any repeats. If `validate_indices` is true, these properties
+are checked during execution.
+  }];
+
+  let arguments = (ins
+    TF_I32OrI64Tensor:$sparse_indices,
+    TF_I32OrI64Tensor:$output_shape,
+    TF_Tensor:$sparse_values,
+    TF_Tensor:$default_value,
+
+    DefaultValuedAttr<BoolAttr, "true">:$validate_indices
+  );
+
+  let results = (outs
+    TF_Tensor:$dense
+  );
+
+  TF_DerivedOperandTypeAttr Tindices = TF_DerivedOperandTypeAttr<0>;
+  TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<2>;
+}
+
 def TF_SplitOp : TF_Op<"Split", [NoSideEffect]> {
   let summary = "Splits a tensor into `num_split` tensors along one dimension.";
 
@@ -3129,6 +3171,42 @@ shape(squeeze(t, [2, 4])) ==> [1, 2, 3, 1]
     TF_Tensor:$input,
 
     DefaultValuedAttr<I64ArrayAttr, "{}">:$squeeze_dims
+  );
+
+  let results = (outs
+    TF_Tensor:$output
+  );
+
+  TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
+}
+
+def TF_StopGradientOp : TF_Op<"StopGradient", [NoSideEffect, SameOperandsAndResultType]> {
+  let summary = "Stops gradient computation.";
+
+  let description = [{
+When executed in a graph, this op outputs its input tensor as-is.
+
+When building ops to compute gradients, this op prevents the contribution of
+its inputs to be taken into account.  Normally, the gradient generator adds ops
+to a graph to compute the derivatives of a specified 'loss' by recursively
+finding out inputs that contributed to its computation.  If you insert this op
+in the graph it inputs are masked from the gradient generator.  They are not
+taken into account for computing gradients.
+
+This is useful any time you want to compute a value with TensorFlow but need
+to pretend that the value was a constant. Some examples include:
+
+*  The *EM* algorithm where the *M-step* should not involve backpropagation
+   through the output of the *E-step*.
+*  Contrastive divergence training of Boltzmann machines where, when
+   differentiating the energy function, the training must not backpropagate
+   through the graph that generated the samples from the model.
+*  Adversarial training, where no backprop should happen through the adversarial
+   example generation process.
+  }];
+
+  let arguments = (ins
+    TF_Tensor:$input
   );
 
   let results = (outs
@@ -3594,6 +3672,82 @@ This is the opposite of `pack`.
 
   let results = (outs
     Variadic<TF_Tensor>:$output
+  );
+
+  TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
+}
+
+def TF_WhereOp : TF_Op<"Where", [NoSideEffect]> {
+  let summary = "Returns locations of nonzero / true values in a tensor.";
+
+  let description = [{
+This operation returns the coordinates of true elements in `condition`. The
+coordinates are returned in a 2-D tensor where the first dimension (rows)
+represents the number of true elements, and the second dimension (columns)
+represents the coordinates of the true elements. Keep in mind, the shape of
+the output tensor can vary depending on how many true values there are in
+`condition`. Indices are output in row-major order.
+
+For example:
+
+```
+# 'input' tensor is [[True, False]
+#                    [True, False]]
+# 'input' has two true values, so output has two coordinates.
+# 'input' has rank of 2, so coordinates have two indices.
+where(input) ==> [[0, 0],
+                  [1, 0]]
+
+# `condition` tensor is [[[True, False]
+#                     [True, False]]
+#                    [[False, True]
+#                     [False, True]]
+#                    [[False, False]
+#                     [False, True]]]
+# 'input' has 5 true values, so output has 5 coordinates.
+# 'input' has rank of 3, so coordinates have three indices.
+where(input) ==> [[0, 0, 0],
+                  [0, 1, 0],
+                  [1, 0, 1],
+                  [1, 1, 1],
+                  [2, 1, 1]]
+
+# `condition` tensor is [[[1.5,  0.0]
+#                     [-0.5, 0.0]]
+#                    [[0.0,  0.25]
+#                     [0.0,  0.75]]
+#                    [[0.0,  0.0]
+#                     [0.0,  0.01]]]
+# 'input' has 5 nonzero values, so output has 5 coordinates.
+# 'input' has rank of 3, so coordinates have three indices.
+where(input) ==> [[0, 0, 0],
+                  [0, 1, 0],
+                  [1, 0, 1],
+                  [1, 1, 1],
+                  [2, 1, 1]]
+
+# `condition` tensor is [[[1.5 + 0.0j, 0.0  + 0.0j]
+#                     [0.0 + 0.5j, 0.0  + 0.0j]]
+#                    [[0.0 + 0.0j, 0.25 + 1.5j]
+#                     [0.0 + 0.0j, 0.75 + 0.0j]]
+#                    [[0.0 + 0.0j, 0.0  + 0.0j]
+#                     [0.0 + 0.0j, 0.01 + 0.0j]]]
+# 'input' has 5 nonzero magnitude values, so output has 5 coordinates.
+# 'input' has rank of 3, so coordinates have three indices.
+where(input) ==> [[0, 0, 0],
+                  [0, 1, 0],
+                  [1, 0, 1],
+                  [1, 1, 1],
+                  [2, 1, 1]]
+```
+  }];
+
+  let arguments = (ins
+    TensorOf<[BF16, F16, F32, F64, I1, I16, I32, I64, I8, TF_Complex128, TF_Complex64]>:$input
+  );
+
+  let results = (outs
+    I64Tensor:$index
   );
 
   TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
