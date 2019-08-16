@@ -13,22 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_SERVICE_GPU_CUDNN_CONV_BLACKLIST_H_
-#define TENSORFLOW_COMPILER_XLA_SERVICE_GPU_CUDNN_CONV_BLACKLIST_H_
+%include "tensorflow/python/lib/core/strings.i"
+%include "tensorflow/python/platform/base.i"
 
-#include <vector>
+%{
+#include "tensorflow/core/profiler/internal/python_scoped_annotation.h"
+%}
 
-#include "absl/strings/string_view.h"
-#include "tensorflow/core/platform/stream_executor_no_cuda.h"
-#include "tensorflow/core/protobuf/autotuning.pb.h"
+%ignoreall
 
-namespace xla {
-namespace gpu {
+%unignore tensorflow;
+%unignore tensorflow::profiler;
+%unignore tensorflow::profiler::PythonScopedAnnotation;
+%unignore tensorflow::profiler::PythonScopedAnnotation::PythonScopedAnnotation;
+%unignore tensorflow::profiler::PythonScopedAnnotation::Enter;
+%unignore tensorflow::profiler::PythonScopedAnnotation::Exit;
+%unignore tensorflow::profiler::PythonScopedAnnotation::~PythonScopedAnnotation;
 
-absl::Span<const stream_executor::dnn::AlgorithmDesc> GetBlacklistedAlgorithms(
-    tensorflow::ComputeCapability, tensorflow::CudnnVersion, absl::string_view);
+%include "tensorflow/core/profiler/internal/python_scoped_annotation.h"
 
-}  // namespace gpu
-}  // namespace xla
-
-#endif  // TENSORFLOW_COMPILER_XLA_SERVICE_GPU_CUDNN_CONV_BLACKLIST_H_
+%unignoreall
