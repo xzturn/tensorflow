@@ -15,7 +15,7 @@
 // limitations under the License.
 // =============================================================================
 
-#include "mlir/AffineOps/AffineOps.h"
+#include "mlir/Dialect/AffineOps/AffineOps.h"
 #include "mlir/Dialect/StandardOps/Ops.h"
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
@@ -41,7 +41,7 @@ AffineOpsDialect::AffineOpsDialect(MLIRContext *context)
   addOperations<AffineApplyOp, AffineDmaStartOp, AffineDmaWaitOp, AffineLoadOp,
                 AffineStoreOp,
 #define GET_OP_LIST
-#include "mlir/AffineOps/AffineOps.cpp.inc"
+#include "mlir/Dialect/AffineOps/AffineOps.cpp.inc"
                 >();
 }
 
@@ -1684,7 +1684,11 @@ void AffineStoreOp::build(Builder *builder, OperationState *result,
   result->addOperands(memref);
   result->addOperands(operands);
   auto memrefType = memref->getType().cast<MemRefType>();
-  auto map = builder->getMultiDimIdentityMap(memrefType.getRank());
+  auto rank = memrefType.getRank();
+  // Create identity map for memrefs with at least one dimension or () -> ()
+  // for zero-dimensional memrefs.
+  auto map = rank ? builder->getMultiDimIdentityMap(rank)
+                  : builder->getEmptyAffineMap();
   result->addAttribute(getMapAttrName(), builder->getAffineMapAttr(map));
 }
 
@@ -1757,4 +1761,4 @@ void AffineStoreOp::getCanonicalizationPatterns(
 }
 
 #define GET_OP_CLASSES
-#include "mlir/AffineOps/AffineOps.cpp.inc"
+#include "mlir/Dialect/AffineOps/AffineOps.cpp.inc"
