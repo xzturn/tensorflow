@@ -390,9 +390,8 @@ static ParseResult parseAccessChainOp(OpAsmParser *parser,
     return failure();
   }
 
-  Location baseLoc = state->operands.front()->getLoc();
   auto resultType = getElementPtrType(
-      type, llvm::makeArrayRef(state->operands).drop_front(), baseLoc);
+      type, llvm::makeArrayRef(state->operands).drop_front(), state->location);
   if (!resultType) {
     return failure();
   }
@@ -1027,6 +1026,27 @@ static LogicalResult verify(spirv::ModuleOp moduleOp) {
             "functions in 'spv.module' can only contain spv.* ops");
       }
   }
+
+  // Verify capabilities. ODS already guarantees that we have an array of
+  // string attributes.
+  if (auto caps = moduleOp.getAttrOfType<ArrayAttr>("capabilities")) {
+    for (auto cap : caps.getValue()) {
+      auto capStr = cap.cast<StringAttr>().getValue();
+      if (!spirv::symbolizeCapability(capStr))
+        return moduleOp.emitOpError("uses unknown capability: ") << capStr;
+    }
+  }
+
+  // Verify extensions. ODS already guarantees that we have an array of
+  // string attributes.
+  if (auto exts = moduleOp.getAttrOfType<ArrayAttr>("extensions")) {
+    for (auto ext : exts.getValue()) {
+      auto extStr = ext.cast<StringAttr>().getValue();
+      if (!spirv::symbolizeExtension(extStr))
+        return moduleOp.emitOpError("uses unknown extension: ") << extStr;
+    }
+  }
+
   return success();
 }
 

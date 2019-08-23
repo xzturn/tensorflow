@@ -2,6 +2,7 @@
 
 # TODO(b/123403203) actually make TFLite use ruy.
 
+load(":build_defs.bzl", "ruy_copts_avx2", "ruy_copts_skylake")
 load(":ruy_visibility.bzl", "ruy_visibility")
 load(":ruy_test_ext.bzl", "ruy_test_ext_defines", "ruy_test_ext_deps")
 load(":ruy_test.bzl", "ruy_benchmark", "ruy_benchmark_opt_sets", "ruy_test")
@@ -78,6 +79,15 @@ cc_library(
     hdrs = ["size_util.h"],
     copts = RUY_COPTS,
     deps = [":check_macros"],
+)
+
+cc_test(
+    name = "size_util_test",
+    srcs = ["size_util_test.cc"],
+    deps = [
+        ":size_util",
+        "@com_google_googletest//:gtest",
+    ],
 )
 
 cc_library(
@@ -195,15 +205,30 @@ cc_library(
 )
 
 cc_library(
-    name = "detect_dotprod",
+    name = "detect_arm",
     srcs = [
-        "detect_dotprod.cc",
+        "detect_arm.cc",
     ],
     hdrs = [
-        "detect_dotprod.h",
+        "detect_arm.h",
     ],
     copts = RUY_COPTS,
     visibility = ruy_visibility(),
+)
+
+cc_library(
+    name = "detect_x86",
+    srcs = [
+        "detect_x86.cc",
+    ],
+    hdrs = [
+        "detect_x86.h",
+    ],
+    copts = RUY_COPTS,
+    visibility = ruy_visibility(),
+    deps = [
+        ":platform",
+    ],
 )
 
 cc_library(
@@ -231,27 +256,6 @@ cc_library(
         ":check_macros",
         ":side_pair",
         ":time",
-    ],
-)
-
-cc_library(
-    name = "context",
-    srcs = [
-        "context.cc",
-    ],
-    hdrs = [
-        "context.h",
-    ],
-    copts = RUY_COPTS,
-    visibility = ruy_visibility(),
-    deps = [
-        ":allocator",
-        ":check_macros",
-        ":detect_dotprod",
-        ":path",
-        ":thread_pool",
-        ":trace",
-        ":tune",
     ],
 )
 
@@ -325,64 +329,6 @@ cc_library(
 )
 
 cc_library(
-    name = "kernel_arm",
-    srcs = [
-        "kernel_arm32.cc",
-        "kernel_arm64.cc",
-    ],
-    copts = RUY_COPTS,
-    deps = [
-        ":common",
-        ":kernel_common",
-        ":opt_set",
-        ":platform",
-        "@gemmlowp//:profiler",
-    ],
-)
-
-cc_library(
-    name = "kernel_avx512",
-    srcs = [
-        "kernel_avx512.cc",
-    ],
-    copts = RUY_COPTS,
-    deps = [
-        ":check_macros",
-        ":kernel_common",
-        ":opt_set",
-        ":platform",
-        "@gemmlowp//:profiler",
-    ],
-)
-
-cc_library(
-    name = "kernel",
-    hdrs = [
-        "kernel.h",
-        "kernel_common.h",
-    ],
-    copts = RUY_COPTS,
-    deps = [
-        ":check_macros",
-        ":common",
-        ":internal_matrix",
-        ":kernel_arm",  # fixdeps: keep
-        ":kernel_avx512",  # fixdeps: keep
-        ":kernel_common",
-        ":matrix",
-        ":opt_set",
-        ":path",
-        ":platform",
-        ":side_pair",
-        ":size_util",
-        ":spec",
-        ":tune",
-        "@gemmlowp//:fixedpoint",
-        "@gemmlowp//:profiler",
-    ],
-)
-
-cc_library(
     name = "pack_common",
     hdrs = [
         "pack.h",
@@ -405,6 +351,22 @@ cc_library(
 )
 
 cc_library(
+    name = "kernel_arm",
+    srcs = [
+        "kernel_arm32.cc",
+        "kernel_arm64.cc",
+    ],
+    copts = RUY_COPTS,
+    deps = [
+        ":common",
+        ":kernel_common",
+        ":opt_set",
+        ":platform",
+        "@gemmlowp//:profiler",
+    ],
+)
+
+cc_library(
     name = "pack_arm",
     srcs = [
         "pack_arm.cc",
@@ -420,11 +382,26 @@ cc_library(
 )
 
 cc_library(
+    name = "kernel_avx512",
+    srcs = [
+        "kernel_avx512.cc",
+    ],
+    copts = RUY_COPTS + ruy_copts_skylake(),
+    deps = [
+        ":check_macros",
+        ":kernel_common",
+        ":opt_set",
+        ":platform",
+        "@gemmlowp//:profiler",
+    ],
+)
+
+cc_library(
     name = "pack_avx512",
     srcs = [
         "pack_avx512.cc",
     ],
-    copts = RUY_COPTS,
+    copts = RUY_COPTS + ruy_copts_skylake(),
     deps = [
         ":check_macros",
         ":matrix",
@@ -432,6 +409,66 @@ cc_library(
         ":pack_common",
         ":path",
         ":platform",
+        "@gemmlowp//:profiler",
+    ],
+)
+
+cc_library(
+    name = "kernel_avx2",
+    srcs = [
+        "kernel_avx2.cc",
+    ],
+    copts = RUY_COPTS + ruy_copts_avx2(),
+    deps = [
+        ":check_macros",
+        ":kernel_common",
+        ":opt_set",
+        ":platform",
+        "@gemmlowp//:profiler",
+    ],
+)
+
+cc_library(
+    name = "pack_avx2",
+    srcs = [
+        "pack_avx2.cc",
+    ],
+    copts = RUY_COPTS + ruy_copts_avx2(),
+    deps = [
+        ":check_macros",
+        ":matrix",
+        ":opt_set",
+        ":pack_common",
+        ":path",
+        ":platform",
+        "@gemmlowp//:profiler",
+    ],
+)
+
+cc_library(
+    name = "kernel",
+    hdrs = [
+        "kernel.h",
+        "kernel_common.h",
+    ],
+    copts = RUY_COPTS,
+    deps = [
+        ":check_macros",
+        ":common",
+        ":internal_matrix",
+        ":kernel_arm",  # fixdeps: keep
+        ":kernel_avx2",  # fixdeps: keep
+        ":kernel_avx512",  # fixdeps: keep
+        ":kernel_common",
+        ":matrix",
+        ":opt_set",
+        ":path",
+        ":platform",
+        ":side_pair",
+        ":size_util",
+        ":spec",
+        ":tune",
+        "@gemmlowp//:fixedpoint",
         "@gemmlowp//:profiler",
     ],
 )
@@ -450,12 +487,36 @@ cc_library(
         ":matrix",
         ":opt_set",
         ":pack_arm",  # fixdeps: keep
+        ":pack_avx2",  # fixdeps: keep
         ":pack_avx512",  # fixdeps: keep
         ":pack_common",
         ":path",
         ":platform",
         ":tune",
         "@gemmlowp//:profiler",
+    ],
+)
+
+cc_library(
+    name = "context",
+    srcs = [
+        "context.cc",
+    ],
+    hdrs = [
+        "context.h",
+    ],
+    copts = RUY_COPTS,
+    visibility = ruy_visibility(),
+    deps = [
+        ":allocator",
+        ":check_macros",
+        ":detect_arm",
+        ":detect_x86",
+        ":path",
+        ":platform",
+        ":thread_pool",
+        ":trace",
+        ":tune",
     ],
 )
 

@@ -26,7 +26,7 @@ import six
 
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.core.framework import variable_pb2
-from tensorflow.python import pywrap_tensorflow
+from tensorflow.python import _pywrap_utils
 from tensorflow.python.eager import context
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import ops
@@ -1351,7 +1351,7 @@ class Variable(six.with_metaclass(VariableMetaclass, trackable.Trackable)):
 
 
 Variable._OverloadAllOperators()  # pylint: disable=protected-access
-pywrap_tensorflow.RegisterType("Variable", Variable)
+_pywrap_utils.RegisterType("Variable", Variable)
 
 
 @tf_export(v1=["Variable"])
@@ -2829,7 +2829,7 @@ class PartitionedVariable(object):
   eager execution.  Use `tf.Variable` instead which is compatible
   with both eager execution and graph construction.  See [the
   TensorFlow Eager Execution
-  guide](https://github.com/tensorflow/tensorflow/tree/master/tensorflow/contrib/eager/python/g3doc/guide.md#variables-and-optimizers)
+  guide](https://www.tensorflow.org/guide/eager#variables_and_optimizers)
   for details on how variables work in eager execution.
   @end_compatibility
   """

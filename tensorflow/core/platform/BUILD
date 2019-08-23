@@ -23,8 +23,8 @@ load(
     "tf_logging_absl_deps",
     "tf_platform_hdrs",
     "tf_platform_srcs",
-    "tf_protobuf_deps",
     "tf_protobuf_compiler_deps",
+    "tf_protobuf_deps",
 )
 load(
     "//tensorflow:tensorflow.bzl",
@@ -190,6 +190,17 @@ cc_library(
 )
 
 cc_library(
+    name = "scanner",
+    srcs = ["scanner.cc"],
+    hdrs = ["scanner.h"],
+    deps = [
+        ":macros",
+        ":str_util",
+        ":stringpiece",
+    ],
+)
+
+cc_library(
     name = "stacktrace",
     srcs = glob(["*/stacktrace.h"]),
     hdrs = ["stacktrace.h"],
@@ -298,6 +309,7 @@ filegroup(
             "**/stream_executor.h",
             "**/env_time.cc",
             "**/device_tracer.cc",
+            "**/tpu_tracer.cc",
             "**/logger.cc",
             "**/logging.cc",
             "**/human_readable_json.cc",
@@ -307,6 +319,7 @@ filegroup(
             "cpu_info.cc",
             "platform_strings.cc",
             "protobuf.cc",
+            "scanner.cc",
             "stringprintf.cc",
         ],
     ),
@@ -393,6 +406,7 @@ filegroup(
             "**/monitoring.cc",
             "**/cuda_libdevice_path.cc",
             "**/device_tracer.cc",
+            "**/tpu_tracer.cc",
             "**/logger.cc",
             "**/logging.cc",
             "**/human_readable_json.cc",
@@ -402,6 +416,7 @@ filegroup(
             "cpu_info.cc",
             "platform_strings.cc",
             "protobuf.cc",
+            "scanner.cc",
             "stringprintf.cc",
             "str_util.cc",
         ],

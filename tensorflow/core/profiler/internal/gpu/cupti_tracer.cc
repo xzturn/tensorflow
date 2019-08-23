@@ -557,8 +557,9 @@ void AnnotationMap::Add(uint32 device_id, uint32 correlation_id,
   auto &per_device_map = per_device_map_[device_id];
   absl::MutexLock lock(&per_device_map.mutex);
   if (per_device_map.annotations.size() < max_size_) {
-    per_device_map.correlation_map.emplace(
-        correlation_id, *per_device_map.annotations.insert(annotation).first);
+    absl::string_view annotation_str =
+        *per_device_map.annotations.insert(annotation).first;
+    per_device_map.correlation_map.emplace(correlation_id, annotation_str);
   }
 }
 
@@ -614,6 +615,7 @@ void CuptiTracer::Disable() {
     DisableActivityTracing().IgnoreError();
   }
   cupti_interface_->CleanUp();
+  Finalize().IgnoreError();
   collector_->Flush();
   collector_ = nullptr;
   cupti_interface_ = nullptr;
@@ -698,12 +700,15 @@ Status CuptiTracer::DisableActivityTracing() {
     VLOG(1) << "Flushing CUPTI activity buffer";
     RETURN_IF_CUPTI_ERROR(
         cupti_interface_->ActivityFlushAll(CUPTI_ACTIVITY_FLAG_FLUSH_FORCED));
-
-    if (option_->cupti_finalize) {
-      RETURN_IF_CUPTI_ERROR(cupti_interface_->Finalize());
-    }
   }
   activity_tracing_enabled_ = false;
+  return Status::OK();
+}
+
+Status CuptiTracer::Finalize() {
+  if (option_->cupti_finalize) {
+    RETURN_IF_CUPTI_ERROR(cupti_interface_->Finalize());
+  }
   return Status::OK();
 }
 

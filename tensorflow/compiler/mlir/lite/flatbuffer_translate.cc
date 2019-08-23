@@ -194,6 +194,10 @@ static StatusOr<tflite::TensorType> GetTFLiteType(Type type,
       auto qtype = type.cast<mlir::quant::UniformQuantizedType>();
       return GetTFLiteType(qtype.getStorageType(), qtype.isSigned());
     }
+    case mlir::quant::QuantizationTypes::UniformQuantizedPerAxis: {
+      auto qtype = type.cast<mlir::quant::UniformQuantizedPerAxisType>();
+      return GetTFLiteType(qtype.getStorageType(), qtype.isSigned());
+    }
     default:
       // TFLite export fills FLOAT32 for unknown data types. Returning an error
       // for now for safety and this could be revisited when required.
@@ -314,8 +318,8 @@ static std::unique_ptr<::tensorflow::NodeDef> getTensorFlowNodeDef(
   // We pass empty string for the original node_def name since Flex runtime
   // does not care about this being set correctly on node_def. There is no
   // "easy" (see b/120948529) way yet to get this from MLIR inst.
-  auto status_or_node_def =
-      tensorflow::ConvertTFDialectOpToNodeDef(inst, /*name=*/"");
+  auto status_or_node_def = tensorflow::ConvertTFDialectOpToNodeDef(
+      inst, /*name=*/"", /*ignore_unregistered_attrs=*/true);
   if (!status_or_node_def.ok()) {
     inst->emitOpError(
         Twine("failed to obtain TensorFlow nodedef with status: " +
@@ -572,6 +576,16 @@ Optional<BufferOffset<tflite::Tensor>> Translator::BuildTensor(
         builder_, /*min=*/0, /*max=*/0,
         builder_.CreateVector<float>({static_cast<float>(qtype.getScale())}),
         builder_.CreateVector<int64_t>({qtype.getZeroPoint()}));
+  } else if (auto qtype =
+                 element_type
+                     .dyn_cast<mlir::quant::UniformQuantizedPerAxisType>()) {
+    std::vector<float> scales(qtype.getScales().begin(),
+                              qtype.getScales().end());
+    q_params = tflite::CreateQuantizationParameters(
+        builder_, /*min=*/0, /*max=*/0, builder_.CreateVector<float>(scales),
+        builder_.CreateVector<int64_t>(qtype.getZeroPoints()),
+        tflite::QuantizationDetails_NONE, /*details=*/0,
+        qtype.getQuantizedDimension());
   } else {
     q_params = tflite::CreateQuantizationParameters(builder_);
   }
@@ -1054,8 +1068,14 @@ Optional<std::string> Translator::TranslateInternal() {
     subgraphs.push_back(*subgraph_or);
   }
 
+  std::string model_description;
+  if (auto attr = module_.getAttrOfType<StringAttr>("tfl.description")) {
+    model_description = attr.getValue().str();
+  } else {
+    model_description = "MLIR Converted.";
+  }
   // Build the model and finish the model building process.
-  auto description = builder_.CreateString("MLIR Converted.");
+  auto description = builder_.CreateString(model_description.data());
   auto model = tflite::CreateModel(
       builder_, TFLITE_SCHEMA_VERSION, builder_.CreateVector(opcodes_),
       builder_.CreateVector(subgraphs), description,

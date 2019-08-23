@@ -1,4 +1,4 @@
-/* Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2017 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,19 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include <jni.h>
-
-#include "tensorflow/lite/testing/init_tensorflow.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif  // __cplusplus
-
-JNIEXPORT void JNICALL Java_org_tensorflow_lite_TensorFlowLite_initTensorFlow(
-    JNIEnv* env, jclass clazz) {
-  ::tflite::InitTensorFlow();
-}
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif  // __cplusplus
+#define CPU_PROVIDED_IXDIM 8
+#include "tensorflow/core/kernels/slice_op_cpu_impl.h"
+#undef CPU_PROVIDED_IXDIM
