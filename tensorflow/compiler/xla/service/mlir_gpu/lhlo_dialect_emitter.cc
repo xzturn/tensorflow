@@ -13,16 +13,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#include "tensorflow/compiler/xla/service/mlir_gpu/hlo_dialect_emitter.h"
+#include "tensorflow/compiler/xla/service/mlir_gpu/lhlo_dialect_emitter.h"
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"  // TF:local_config_mlir
 #include "mlir/Dialect/StandardOps/Ops.h"  // TF:local_config_mlir
 #include "mlir/IR/Attributes.h"  // TF:local_config_mlir
 #include "mlir/IR/Builders.h"  // TF:local_config_mlir
+#include "mlir/IR/Function.h"  // TF:local_config_mlir
 #include "mlir/IR/Identifier.h"  // TF:local_config_mlir
 #include "mlir/IR/StandardTypes.h"  // TF:local_config_mlir
 #include "mlir/IR/Types.h"  // TF:local_config_mlir
-#include "tensorflow/compiler/mlir/xla/ir/lxla_ops.h"
+#include "tensorflow/compiler/mlir/xla/ir/lhlo_ops.h"
 #include "tensorflow/compiler/xla/service/gpu/thunk.h"
 #include "tensorflow/compiler/xla/service/gpu/thunk_emitter.h"
 #include "tensorflow/compiler/xla/service/hlo_computation.h"
@@ -33,36 +34,50 @@ limitations under the License.
 #include "tensorflow/core/lib/core/errors.h"
 
 namespace xla {
-namespace gpu {
+namespace mlir {
+
 namespace {
 
+using gpu::Thunk;
+using gpu::ThunkEmitter;
+using gpu::ThunkSequence;
+using ::mlir::ArrayRef;
+using ::mlir::Attribute;
+using ::mlir::Builder;
+using ::mlir::FuncOp;
+using ::mlir::Identifier;
+using ::mlir::Location;
+using ::mlir::ModuleOp;
+using ::mlir::NamedAttribute;
+using ::mlir::OpBuilder;
+using ::mlir::Type;
+using ::mlir::Value;
 using ::mlir::LLVM::LLVMDialect;
 
-Status InsertMlirOp(
-    HloOpcode opcode, mlir::OpBuilder func_builder, mlir::Location loc,
-    mlir::ArrayRef<mlir::Type> rets, mlir::ArrayRef<mlir::Value*> args,
-    mlir::ArrayRef<std::pair<mlir::Identifier, mlir::Attribute>> attrs) {
+Status InsertMlirOp(HloOpcode opcode, OpBuilder func_builder, Location loc,
+                    ArrayRef<Type> rets, ArrayRef<Value*> args,
+                    mlir::ArrayRef<std::pair<Identifier, Attribute>> attrs) {
   switch (opcode) {
     case HloOpcode::kAdd:
-      func_builder.create<mlir::LXLA::AddOp>(loc, rets, args, attrs);
+      func_builder.create<::mlir::xla_lhlo::AddOp>(loc, rets, args, attrs);
       break;
     case HloOpcode::kMultiply:
-      func_builder.create<mlir::LXLA::MulOp>(loc, rets, args, attrs);
+      func_builder.create<::mlir::xla_lhlo::MulOp>(loc, rets, args, attrs);
       break;
     case HloOpcode::kSubtract:
-      func_builder.create<mlir::LXLA::SubOp>(loc, rets, args, attrs);
+      func_builder.create<::mlir::xla_lhlo::SubOp>(loc, rets, args, attrs);
       break;
     case HloOpcode::kDivide:
-      func_builder.create<mlir::LXLA::DivOp>(loc, rets, args, attrs);
+      func_builder.create<::mlir::xla_lhlo::DivOp>(loc, rets, args, attrs);
       break;
     case HloOpcode::kAnd:
-      func_builder.create<mlir::LXLA::AndOp>(loc, rets, args, attrs);
+      func_builder.create<::mlir::xla_lhlo::AndOp>(loc, rets, args, attrs);
       break;
     case HloOpcode::kMinimum:
-      func_builder.create<mlir::LXLA::MinOp>(loc, rets, args, attrs);
+      func_builder.create<::mlir::xla_lhlo::MinOp>(loc, rets, args, attrs);
       break;
     case HloOpcode::kMaximum:
-      func_builder.create<mlir::LXLA::MaxOp>(loc, rets, args, attrs);
+      func_builder.create<::mlir::xla_lhlo::MaxOp>(loc, rets, args, attrs);
       break;
     default:
       return tensorflow::errors::Internal(
@@ -71,8 +86,8 @@ Status InsertMlirOp(
   return Status::OK();
 }
 
-StatusOr<mlir::MemRefType> ConvertTensorType(const Shape& shape,
-                                             mlir::Builder builder) {
+StatusOr<::mlir::MemRefType> ConvertTensorType(const Shape& shape,
+                                               Builder builder) {
   llvm::SmallVector<int64_t, 4> array;
   array.reserve(shape.dimensions_size());
   for (const auto dim : shape.dimensions()) {
@@ -131,10 +146,10 @@ StatusOr<llvm::SmallVector<mlir::Type, 4>> GetInstructionArgTypes(
 
 }  // namespace
 
-HloDialectEmitter::HloDialectEmitter(const HloModule& hlo_module,
-                                     const BufferAssignment& assignment,
-                                     const se::Platform* platform,
-                                     ::mlir::ModuleOp mlir_module)
+LhloDialectEmitter::LhloDialectEmitter(const HloModule& hlo_module,
+                                       const BufferAssignment& assignment,
+                                       const se::Platform* platform,
+                                       ModuleOp mlir_module)
     : mlir_module_(mlir_module),
       builder_(mlir_module_.getContext()),
       buffer_assignment_(assignment),
@@ -145,38 +160,38 @@ HloDialectEmitter::HloDialectEmitter(const HloModule& hlo_module,
   pointer_size_ = llvmDialect->getLLVMModule().getDataLayout().getPointerSize();
 }
 
-void HloDialectEmitter::AddThunkToThunkSequence(std::unique_ptr<Thunk> thunk) {
+void LhloDialectEmitter::AddThunkToThunkSequence(std::unique_ptr<Thunk> thunk) {
   thunk_sequence_->push_back(std::move(thunk));
 }
 
-StatusOr<BufferAllocation::Slice> HloDialectEmitter::MaybeGetAllocationSlice(
+StatusOr<BufferAllocation::Slice> LhloDialectEmitter::MaybeGetAllocationSlice(
     const HloInstruction& hlo, const ShapeIndex& index) const {
   return buffer_assignment_.GetUniqueSlice(&hlo, index);
 }
 
-int64 HloDialectEmitter::ByteSizeOf(const Shape& shape) const {
+int64 LhloDialectEmitter::ByteSizeOf(const Shape& shape) const {
   return ShapeUtil::ByteSizeOf(shape, pointer_size_);
 }
 
-const se::Platform* HloDialectEmitter::platform() const { return platform_; }
+const se::Platform* LhloDialectEmitter::platform() const { return platform_; }
 
-Status HloDialectEmitter::EmitComputation(const HloComputation& computation) {
+Status LhloDialectEmitter::EmitComputation(const HloComputation& computation) {
   return computation.root_instruction()->Accept(this);
 }
 
-StatusOr<mlir::FuncOp> HloDialectEmitter::CreateFunction(
+StatusOr<FuncOp> LhloDialectEmitter::CreateFunction(
     const HloInstruction& instr) {
   TF_ASSIGN_OR_RETURN(auto args, GetInstructionArgTypes(instr, builder_));
   auto function_type = builder_.getFunctionType(args, {});
-  auto function = mlir::FuncOp::create(builder_.getUnknownLoc(), instr.name(),
-                                       function_type);
+  auto function =
+      FuncOp::create(builder_.getUnknownLoc(), instr.name(), function_type);
   mlir_module_.push_back(function);
   function.addEntryBlock();
   instruction_to_mlir_func_[&instr] = function;
   return Status::OK();
 }
 
-Status HloDialectEmitter::DefaultAction(HloInstruction* instr) {
+Status LhloDialectEmitter::DefaultAction(HloInstruction* instr) {
   TF_ASSIGN_OR_RETURN(auto function, CreateFunction(*instr));
   mlir::OpBuilder func_builder(function.getBody());
   llvm::SmallVector<mlir::Value*, 4> arg_values{function.args_begin(),
@@ -189,17 +204,17 @@ Status HloDialectEmitter::DefaultAction(HloInstruction* instr) {
   return Status::OK();
 }
 
-Status HloDialectEmitter::HandleFusion(HloInstruction* fusion) {
+Status LhloDialectEmitter::HandleFusion(HloInstruction* fusion) {
   LOG(FATAL) << "Not implemented yet.";
 }
 
-Status HloDialectEmitter::HandleCustomCall(HloInstruction* custom_call) {
+Status LhloDialectEmitter::HandleCustomCall(HloInstruction* custom_call) {
   return ThunkEmitter(this).HandleCustomCall(custom_call);
 }
 
-Status HloDialectEmitter::FinishVisit(HloInstruction* root) {
+Status LhloDialectEmitter::FinishVisit(HloInstruction* root) {
   LOG(FATAL) << "Not implemented yet.";
 }
 
-}  // namespace gpu
+}  // namespace mlir
 }  // namespace xla

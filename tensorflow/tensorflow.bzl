@@ -267,7 +267,6 @@ def get_win_copts(is_external = False):
     else:
         return WINDOWS_COPTS + ["/DTF_COMPILE_LIBRARY"]
 
-# LINT.IfChange
 def tf_copts(
         android_optimization_level_override = "-O2",
         is_external = False,
@@ -328,8 +327,6 @@ def tf_opts_nortti_if_android():
         "-DGOOGLE_PROTOBUF_NO_RTTI",
         "-DGOOGLE_PROTOBUF_NO_STATIC_INITIALIZER",
     ])
-
-# LINT.ThenChange(//tensorflow/contrib/android/cmake/CMakeLists.txt)
 
 def tf_opts_nortti_if_emscripten():
     return if_emscripten([
@@ -2555,6 +2552,10 @@ def if_mlir(if_true, if_false = []):
         "//conditions:default": if_false,
         "//tensorflow:with_mlir_support": if_true,
     })
+
+# TODO(b/138724071): Remove when build is stable.
+def if_mlir_tflite(if_true, if_false = []):
+    return if_true  # Internally we always build with MLIR.
 
 def tfcompile_extra_flags():
     return ""

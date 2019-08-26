@@ -1640,6 +1640,22 @@ PyObject* TFE_Py_TapeSetShouldRecord(PyObject* tensors) {
   Py_RETURN_FALSE;
 }
 
+PyObject* TFE_Py_ForwardAccumulatorPushState() {
+  auto forward_accumulators = *GetAccumulatorSet();
+  for (TFE_Py_ForwardAccumulator* accumulator : forward_accumulators) {
+    accumulator->accumulator->PushState();
+  }
+  Py_RETURN_NONE;
+}
+
+PyObject* TFE_Py_ForwardAccumulatorPopState() {
+  auto forward_accumulators = *GetAccumulatorSet();
+  for (TFE_Py_ForwardAccumulator* accumulator : forward_accumulators) {
+    accumulator->accumulator->PopState();
+  }
+  Py_RETURN_NONE;
+}
+
 PyObject* TFE_Py_TapeSetPossibleGradientTypes(PyObject* tensors) {
   if (!TapeCouldPossiblyRecord(tensors)) {
     return GetPythonObjectFromInt(0);
@@ -1931,18 +1947,19 @@ void TapeSetRecordOperation(
 }
 }  // namespace
 
-void TFE_Py_TapeSetRecordOperation(PyObject* op_type, PyObject* output_tensors,
-                                   PyObject* input_tensors,
-                                   PyObject* backward_function) {
+PyObject* TFE_Py_TapeSetRecordOperation(PyObject* op_type,
+                                        PyObject* output_tensors,
+                                        PyObject* input_tensors,
+                                        PyObject* backward_function) {
   if (!HasTape() || *ThreadTapeIsStopped()) {
-    return;
+    Py_RETURN_NONE;
   }
   std::vector<tensorflow::int64> input_ids = MakeTensorIDList(input_tensors);
-  if (PyErr_Occurred()) return;
+  if (PyErr_Occurred()) return nullptr;
 
   std::vector<tensorflow::DataType> input_dtypes =
       MakeTensorDtypeList(input_tensors);
-  if (PyErr_Occurred()) return;
+  if (PyErr_Occurred()) return nullptr;
 
   TapeSetRecordOperation(
       op_type, input_tensors, output_tensors, input_ids, input_dtypes,
@@ -1960,6 +1977,10 @@ void TFE_Py_TapeSetRecordOperation(PyObject* op_type, PyObject* output_tensors,
         delete py_backward_function;
       },
       nullptr /* No special-cased forward function */);
+  if (PyErr_Occurred()) {
+    return nullptr;
+  }
+  Py_RETURN_NONE;
 }
 
 void TFE_Py_TapeSetDeleteTrace(tensorflow::int64 tensor_id) {
@@ -2711,6 +2732,10 @@ PyObject* RecordGradient(PyObject* op_name, PyObject* inputs, PyObject* attrs,
   Py_DECREF(num_inputs);
   if (op_outputs_tuple_created) Py_DECREF(op_outputs);
   if (op_inputs_tuple_created) Py_DECREF(op_inputs);
+
+  if (PyErr_Occurred()) {
+    return nullptr;
+  }
 
   Py_RETURN_NONE;
 }
