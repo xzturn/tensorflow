@@ -10,7 +10,7 @@ package_group(
     name = "friends",
     includes = ["@local_config_mlir//:subpackages"],
     packages = [
-        "//tensorflow/compiler/mlir/...",
+        "//tensorflow/compiler/...",
         "//tensorflow/python/...",
     ],
 )
@@ -122,6 +122,7 @@ cc_library(
         "ir/tf_ops.cc",
         "ir/tf_ops.cc.inc",
         "ir/tf_ops.h.inc",
+        "ir/tf_types.cc",
         "transforms/cluster_formation.cc",
         "transforms/cluster_outlining.cc",
         "transforms/executor_island_coarsening.cc",
@@ -131,6 +132,7 @@ cc_library(
         "transforms/graph_pruning.cc",
         "transforms/optimize.cc",
         "transforms/raise_control_flow.cc",
+        "transforms/tpu_cluster_formation.cc",
         "transforms/tpu_rewrite_pass.cc",
         "translate/control_to_executor_dialect.cc",
         "translate/executor_to_control_dialect.cc",
@@ -633,4 +635,29 @@ gentbl(
         ":tensorflow_ops_td_files",
         "@local_config_mlir//:StdOpsTdFiles",
     ],
+)
+
+cc_library(
+    name = "tensorflow_fold_switch",
+    srcs = [
+        "transforms/fold_switch.cc",
+    ],
+    hdrs = [
+        "transforms/passes.h",
+    ],
+    copts = ["-std=c++14"],
+    deps = [
+        ":tensorflow",
+        "//tensorflow/core:framework",
+        "//tensorflow/core:lib",
+        "@com_google_absl//absl/memory",
+        "@llvm//:support",
+        "@local_config_mlir//:Analysis",
+        "@local_config_mlir//:IR",
+        "@local_config_mlir//:Pass",
+        "@local_config_mlir//:QuantOps",
+        "@local_config_mlir//:StandardOps",
+        "@local_config_mlir//:Support",
+    ],
+    alwayslink = 1,
 )

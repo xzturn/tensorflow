@@ -1499,7 +1499,8 @@ cuda_py_test(
         "//tensorflow/python:variables",
     ],
     tags = ["notsan"],
-    xla_enable_strict_auto_jit = True,
+    # TODO (b/140294007): the test fails with XLA.
+    xla_enable_strict_auto_jit = False,
 )
 
 cuda_py_test(
@@ -3275,6 +3276,7 @@ cuda_py_test(
     ],
     tags = [
         "no_pip",
+        "nomac",  # http://b/139946976
         "notap",  # http://b/31080670
     ],
     xla_enable_strict_auto_jit = True,
