@@ -15,6 +15,8 @@ limitations under the License.
 
 // This file implements logic for lowering LHLO dialect to Affine dialect.
 
+#include "tensorflow/compiler/xla/service/mlir_gpu/transforms/legalize_to_affine.h"
+
 #include "absl/memory/memory.h"
 #include "mlir/Dialect/AffineOps/AffineOps.h"  // TF:local_config_mlir
 #include "mlir/Dialect/StandardOps/Ops.h"  // TF:local_config_mlir
@@ -127,7 +129,8 @@ Value* GetBinaryOp<lhlo::MaxOp>(::mlir::Type element_type, ::mlir::Location loc,
 
 template <typename LhloOp>
 struct BinaryOpConverter : public ::mlir::RewritePattern {
-  explicit BinaryOpConverter(const string& opname, ::mlir::MLIRContext* context)
+  explicit BinaryOpConverter(const std::string& opname,
+                             ::mlir::MLIRContext* context)
       : RewritePattern(opname, {}, 1, context), opname(opname) {}
 
   ::mlir::PatternMatchResult matchAndRewrite(
@@ -187,7 +190,7 @@ struct LegalizeToAffine : public ::mlir::FunctionPass<LegalizeToAffine> {
 
 }  // namespace
 
-std::unique_ptr<mlir::FunctionPassBase> createLegalizeAffinePass() {
+std::unique_ptr<::mlir::FunctionPassBase> createLegalizeAffinePass() {
   return absl::make_unique<LegalizeToAffine>();
 }
 
