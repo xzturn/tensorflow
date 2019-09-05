@@ -28,7 +28,6 @@ ios_unit_test(
     tags = TFL_DEFAULT_TAGS + TFL_DISABLED_SANITIZER_TAGS + [
         "nozapfhahn",  # Fails during coverage build, see b/139134323.
     ],
-    test_host = ":TestApp",
     deps = [
         ":TestsLibrary",
     ],

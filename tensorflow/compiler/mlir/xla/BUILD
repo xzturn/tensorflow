@@ -94,6 +94,21 @@ cc_library(
     alwayslink = 1,
 )
 
+cc_library(
+    name = "lhlo_legalize_to_affine",
+    srcs = ["transforms/lhlo_legalize_to_affine.cc"],
+    deps = [
+        "//tensorflow/compiler/mlir/xla:lhlo",
+        "//tensorflow/compiler/xla:status",
+        "@com_google_absl//absl/memory",
+        "@local_config_mlir//:AffineOps",
+        "@local_config_mlir//:IR",
+        "@local_config_mlir//:Pass",
+        "@local_config_mlir//:StandardOps",
+    ],
+    alwayslink = 1,
+)
+
 gentbl(
     name = "xla_legalize_to_standard_inc_gen",
     tbl_outs = [
@@ -209,9 +224,15 @@ cc_library(
     srcs = ["type_to_shape.cc"],
     hdrs = ["type_to_shape.h"],
     deps = [
+        "//tensorflow/compiler/mlir/tensorflow:convert_tensor",
+        "//tensorflow/compiler/mlir/tensorflow:convert_type",
         "//tensorflow/compiler/xla:shape_util",
+        "//tensorflow/compiler/xla:statusor",
         "//tensorflow/compiler/xla:xla_data_proto",
-        "//tensorflow/core:lib",
+        "//tensorflow/core:framework",
+        "//tensorflow/core/platform:logging",
+        "//tensorflow/core/platform:types",
+        "@llvm//:support",
         "@local_config_mlir//:IR",
         "@local_config_mlir//:Support",
     ],
@@ -226,6 +247,7 @@ tf_cc_test(
         "//tensorflow/compiler/xla:test",
         "//tensorflow/compiler/xla:xla_data_proto",
         "//tensorflow/core:lib",
+        "//tensorflow/core:protos_all_proto_cc",
         "//tensorflow/core:test_main",
         "@local_config_mlir//:IR",
     ],
