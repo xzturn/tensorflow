@@ -1,4 +1,4 @@
-/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2017 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,18 +12,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
+// Abstract string. We don't want even absl at this level.
+#ifndef TENSORFLOW_LITE_STRING_TYPE_H_
+#define TENSORFLOW_LITE_STRING_TYPE_H_
 
-%include "tensorflow/python/platform/base.i"
+#include <string>
 
-%{
-#include "tensorflow/core/util/port.h"
-%}
+namespace tflite {
 
-%ignoreall
-%unignore tensorflow;
-%unignore tensorflow::IsGoogleCudaEnabled;
-%unignore tensorflow::IsBuiltWithROCm;
-%unignore tensorflow::GpuSupportsHalfMatMulAndConv;
-%unignore tensorflow::IsMklEnabled;
-%include "tensorflow/core/util/port.h"
-%unignoreall
+using std::string;
+
+}  // namespace tflite
+
+#endif  // TENSORFLOW_LITE_STRING_TYPE_H_

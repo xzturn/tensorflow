@@ -116,7 +116,6 @@ tensorflow/lite/kernels/internal/reference/comparisons.h \
 tensorflow/lite/kernels/internal/reference/conv.h \
 tensorflow/lite/kernels/internal/reference/depthwiseconv_float.h \
 tensorflow/lite/kernels/internal/reference/depthwiseconv_uint8.h \
-tensorflow/lite/kernels/internal/reference/dequantize.h \
 tensorflow/lite/kernels/internal/reference/floor.h \
 tensorflow/lite/kernels/internal/reference/fully_connected.h \
 tensorflow/lite/kernels/internal/reference/integer_ops/add.h \
@@ -126,7 +125,6 @@ tensorflow/lite/kernels/internal/reference/neg.h \
 tensorflow/lite/kernels/internal/reference/pooling.h \
 tensorflow/lite/kernels/internal/reference/prelu.h \
 tensorflow/lite/kernels/internal/reference/process_broadcast_shapes.h \
-tensorflow/lite/kernels/internal/reference/quantize.h \
 tensorflow/lite/kernels/internal/reference/round.h \
 tensorflow/lite/kernels/internal/reference/softmax.h \
 tensorflow/lite/kernels/internal/reference/strided_slice.h \
@@ -139,7 +137,7 @@ tensorflow/lite/kernels/kernel_util.h \
 tensorflow/lite/kernels/op_macros.h \
 tensorflow/lite/kernels/padding.h \
 tensorflow/lite/schema/schema_generated.h \
-tensorflow/lite/string.h \
+tensorflow/lite/string_type.h \
 tensorflow/lite/string_util.h \
 tensorflow/lite/version.h
 
@@ -161,8 +159,7 @@ MAKE_PROJECT_FILES := \
 MBED_PROJECT_FILES := \
   README_MBED.md \
   mbed-os.lib \
-  mbed_app.json \
-  .vscode/tasks.json
+  mbed_app.json
 
 KEIL_PROJECT_FILES := \
   README_KEIL.md \
@@ -183,6 +180,9 @@ $(eval $(call add_third_party_download,$(FLATBUFFERS_URL),$(FLATBUFFERS_MD5),fla
 # based on platforms or architectures should happen within these files, to
 # keep this main makefile focused on the sources and dependencies.
 include $(wildcard $(MAKEFILE_DIR)/targets/*_makefile.inc)
+
+# Load dependencies for optimized kernel implementations.
+include $(wildcard $(MAKEFILE_DIR)/ext_libs/*.inc)
 
 # Call specialize here so that platform-specific tags can be taken into account.
 MICROLITE_CC_SRCS := $(call specialize,$(MICROLITE_CC_SRCS))
@@ -205,9 +205,6 @@ MICROLITE_LIB_PATH := $(LIBDIR)$(MICROLITE_LIB_NAME)
 CXX := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}g++
 CC := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}gcc
 AR := $(CC_PREFIX)${TARGET_TOOLCHAIN_PREFIX}ar
-
-# Load optimized kernel implementations
-include $(wildcard $(MAKEFILE_DIR)/ext_libs/*.inc)
 
 # Load the examples.
 include $(wildcard tensorflow/lite/experimental/micro/examples/*/Makefile.inc)

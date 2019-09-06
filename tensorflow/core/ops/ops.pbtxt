@@ -12758,6 +12758,13 @@ op {
       }
     }
   }
+  attr {
+    name: "incompatible_shape_error"
+    type: "bool"
+    default_value {
+      b: true
+    }
+  }
   is_commutative: true
 }
 op {
@@ -19227,6 +19234,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19271,6 +19285,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19310,6 +19331,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -19355,6 +19383,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19390,6 +19425,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -19430,6 +19472,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -19475,6 +19524,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19514,6 +19570,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -19559,6 +19622,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19603,6 +19673,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19638,6 +19715,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -19679,6 +19763,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19714,6 +19805,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -19755,6 +19853,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19794,6 +19899,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -19839,6 +19951,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -19870,6 +19989,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -23972,6 +24098,13 @@ op {
         type: DT_BOOL
         type: DT_COMPLEX128
       }
+    }
+  }
+  attr {
+    name: "incompatible_shape_error"
+    type: "bool"
+    default_value {
+      b: true
     }
   }
   is_commutative: true
@@ -36185,6 +36318,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36229,6 +36369,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36268,6 +36415,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -36313,6 +36467,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36348,6 +36509,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -36388,6 +36556,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -36433,6 +36608,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36472,6 +36654,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -36517,6 +36706,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36561,6 +36757,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36596,6 +36799,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -36637,6 +36847,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36672,6 +36889,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -36713,6 +36937,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36752,6 +36983,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
@@ -36797,6 +37035,13 @@ op {
     name: "shard_id"
     type: "int"
   }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
+  }
   is_stateful: true
 }
 op {
@@ -36828,6 +37073,13 @@ op {
   attr {
     name: "shard_id"
     type: "int"
+  }
+  attr {
+    name: "config"
+    type: "string"
+    default_value {
+      s: ""
+    }
   }
   is_stateful: true
 }
