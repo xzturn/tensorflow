@@ -1,5 +1,5 @@
 load("@local_config_mlir//:tblgen.bzl", "gentbl")
-load("//tensorflow:tensorflow.bzl", "tf_cc_test", "tf_native_cc_binary")
+load("//tensorflow:tensorflow.bzl", "tf_cc_test", "tf_gen_op_wrapper_py", "tf_native_cc_binary")
 
 package(
     default_visibility = [":friends"],
@@ -123,21 +123,6 @@ cc_library(
         "ir/tf_ops.cc.inc",
         "ir/tf_ops.h.inc",
         "ir/tf_types.cc",
-        "transforms/bridge.cc",
-        "transforms/bridge_pass.cc",
-        "transforms/cluster_formation.cc",
-        "transforms/cluster_outlining.cc",
-        "transforms/executor_island_coarsening.cc",
-        "transforms/functional_control_flow_to_cfg.cc",
-        "transforms/generated_canonicalize.inc",
-        "transforms/generated_optimize.inc",
-        "transforms/graph_pruning.cc",
-        "transforms/optimize.cc",
-        "transforms/raise_control_flow.cc",
-        "transforms/tpu_cluster_formation.cc",
-        "transforms/tpu_rewrite_pass.cc",
-        "translate/control_to_executor_dialect.cc",
-        "translate/executor_to_control_dialect.cc",
     ],
     hdrs = [
         "ir/control_flow_ops.h",
@@ -153,16 +138,63 @@ cc_library(
     includes = ["include"],
     deps = [
         ":error_util",
+        ":mlir_passthrough_op",
         ":tensorflow_canonicalize_inc_gen",
         ":tensorflow_device_ops_inc_gen",
         ":tensorflow_executor_inc_gen",
         ":tensorflow_ops_inc_gen",
-        ":tensorflow_optimize_inc_gen",
         "//tensorflow/compiler/mlir/lite:validators",
         "//tensorflow/core:lib",
         "@llvm//:support",
         "@local_config_mlir//:Analysis",
         "@local_config_mlir//:Dialect",
+        "@local_config_mlir//:IR",
+        "@local_config_mlir//:Parser",
+        "@local_config_mlir//:Pass",
+        "@local_config_mlir//:StandardOps",
+        "@local_config_mlir//:Support",
+        "@local_config_mlir//:TransformUtils",
+        "@local_config_mlir//:Transforms",
+    ],
+    # TODO(jpienaar): Merge in the dialect registration.
+    alwayslink = 1,
+)
+
+cc_library(
+    name = "tensorflow_passes",
+    srcs = [
+        "transforms/bridge.cc",
+        "transforms/bridge_pass.cc",
+        "transforms/cluster_formation.cc",
+        "transforms/cluster_outlining.cc",
+        "transforms/executor_island_coarsening.cc",
+        "transforms/fold_switch.cc",
+        "transforms/functional_control_flow_to_cfg.cc",
+        "transforms/generated_canonicalize.inc",
+        "transforms/generated_optimize.inc",
+        "transforms/graph_pruning.cc",
+        "transforms/materialize_mlir_passthrough_op.cc",
+        "transforms/optimize.cc",
+        "transforms/raise_control_flow.cc",
+        "transforms/tpu_cluster_formation.cc",
+        "transforms/tpu_rewrite_pass.cc",
+        "translate/control_to_executor_dialect.cc",
+        "translate/executor_to_control_dialect.cc",
+    ],
+    hdrs = [
+        "transforms/bridge.h",
+        "transforms/passes.h",
+    ],
+    includes = ["include"],
+    deps = [
+        ":error_util",
+        ":tensorflow",
+        ":tensorflow_optimize_inc_gen",
+        "//tensorflow/compiler/mlir/lite:validators",
+        "//tensorflow/core:lib",
+        "//tensorflow/core/platform:logging",
+        "@llvm//:support",
+        "@local_config_mlir//:Analysis",
         "@local_config_mlir//:IR",
         "@local_config_mlir//:Parser",
         "@local_config_mlir//:Pass",
@@ -181,6 +213,7 @@ cc_library(
     srcs = ["ir/dialect_registration.cc"],
     deps = [
         ":tensorflow",
+        ":tensorflow_passes",
         "@local_config_mlir//:IR",
     ],
     alwayslink = 1,
@@ -204,6 +237,7 @@ cc_library(
         ":mangling_util",
         ":mlir_roundtrip_flags",
         ":tensorflow",
+        ":tensorflow_passes",
         "//tensorflow/cc/saved_model:loader_lite",
         "//tensorflow/compiler/jit:shape_inference_helpers",
         "//tensorflow/compiler/xla:status_macros",
@@ -252,6 +286,8 @@ cc_library(
         "utils/export_utils.cc",
     ],
     hdrs = [
+        "ir/tf_types.def",
+        "ir/tf_types.h",
         "utils/export_utils.h",
     ],
     deps = [
@@ -639,35 +675,9 @@ gentbl(
 )
 
 cc_library(
-    name = "tensorflow_fold_switch",
-    srcs = [
-        "transforms/fold_switch.cc",
-    ],
-    hdrs = [
-        "transforms/passes.h",
-    ],
-    copts = ["-std=c++14"],
-    deps = [
-        ":tensorflow",
-        "//tensorflow/core:framework",
-        "//tensorflow/core:lib",
-        "@com_google_absl//absl/memory",
-        "@llvm//:support",
-        "@local_config_mlir//:Analysis",
-        "@local_config_mlir//:IR",
-        "@local_config_mlir//:Pass",
-        "@local_config_mlir//:QuantOps",
-        "@local_config_mlir//:StandardOps",
-        "@local_config_mlir//:Support",
-    ],
-    alwayslink = 1,
-)
-
-cc_library(
     name = "compile_mlir_util",
     srcs = ["utils/compile_mlir_util.cc"],
     hdrs = ["utils/compile_mlir_util.h"],
-    copts = ["-std=c++14"],
     deps = [
         ":convert_type",
         ":error_util",
@@ -700,4 +710,19 @@ tf_cc_test(
         "//tensorflow/core:test_main",
         "//tensorflow/stream_executor/lib",
     ],
+)
+
+cc_library(
+    name = "mlir_passthrough_op",
+    srcs = ["ops/mlir_passthrough_op.cc"],
+    deps = [
+        "//tensorflow/core:framework",
+    ],
+    alwayslink = 1,
+)
+
+tf_gen_op_wrapper_py(
+    name = "gen_mlir_passthrough_op_py",
+    out = "gen_mlir_passthrough_op.py",
+    deps = [":mlir_passthrough_op"],
 )

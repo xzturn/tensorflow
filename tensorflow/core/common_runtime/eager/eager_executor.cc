@@ -121,6 +121,8 @@ Status EagerExecutor::Add(std::unique_ptr<EagerNode> node) {
   // try to call EagerExecutor::Add()
   {
     tensorflow::mutex_lock l(node_queue_mutex_);
+    VLOG(3) << "Add node [id " << next_node_id_ << "]" << node->DebugString()
+            << " with status: " << status_.ToString();
     if (state_ != ExecutorState::kActive) {
       status = errors::FailedPrecondition(
           "EagerExecutor accepts new EagerNodes to run only in Active state. "
@@ -190,14 +192,15 @@ tensorflow::Status EagerExecutor::status() const {
 }
 
 void EagerExecutor::NodeDone(NodeItem* item, const Status& status) {
-  VLOG(3) << "Node Done: [id " << item->id << "] " << item->node->DebugString();
+  VLOG(3) << "Node Done: [id " << item->id << "] " << item->node->DebugString()
+          << " with status: " << status.ToString();
   std::unique_ptr<NodeItem> current_item;
   std::vector<std::unique_ptr<NodeItem>> items_to_destroy;
   {
     mutex_lock l(node_queue_mutex_);
     if (!status_.ok()) return;
     bool need_notification = false;
-    if (item == node_queue_.front().get()) {
+    if (!node_queue_.empty() && item == node_queue_.front().get()) {
       need_notification = unfinished_nodes_.empty();
       current_item = std::move(node_queue_.front());
       node_queue_.pop();

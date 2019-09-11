@@ -146,7 +146,6 @@ py_library(
         ":session_ops",
         ":sets",
         ":sparse_ops",
-        ":spectral_ops_test_util",
         ":standard_ops",
         ":state_ops",
         ":string_ops",
@@ -3714,16 +3713,6 @@ tf_py_test(
 )
 
 py_library(
-    name = "spectral_ops_test_util",
-    srcs = ["ops/spectral_ops_test_util.py"],
-    srcs_version = "PY2AND3",
-    deps = [
-        ":client_testlib",
-        ":framework_ops",
-    ],
-)
-
-py_library(
     name = "confusion_matrix",
     srcs = ["ops/confusion_matrix.py"],
     srcs_version = "PY2AND3",
@@ -5040,6 +5029,7 @@ tf_py_wrap_cc(
         "util/scoped_annotation.i",
         "util/traceme.i",
         "util/transform_graph.i",
+        "//tensorflow/compiler/mlir/python:mlir.i",
         "//tensorflow/lite/toco/python:toco.i",
     ],
     # add win_def_file for pywrap_tensorflow
@@ -5105,11 +5095,14 @@ tf_py_wrap_cc(
 # the dynamic libraries of custom ops can find it at runtime.
 genrule(
     name = "pywrap_tensorflow_filtered_def_file",
-    srcs = [
-        "//tensorflow:tensorflow_def_file",
-        ":pybind_symbol_target_libs_file",
-        "//tensorflow/tools/def_file_filter:symbols_pybind",
-    ],
+    srcs = select({
+        "//tensorflow:windows": [
+            "//tensorflow:tensorflow_def_file",
+            ":pybind_symbol_target_libs_file",
+            "//tensorflow/tools/def_file_filter:symbols_pybind",
+        ],
+        "//conditions:default": [],
+    }),
     outs = ["pywrap_tensorflow_filtered_def_file.def"],
     cmd = select({
         "//tensorflow:windows": """
