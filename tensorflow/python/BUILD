@@ -98,6 +98,8 @@ py_library(
         "//third_party/py/tensorflow_core:__subpackages__",
     ],
     deps = [
+        ":_pywrap_stat_summarizer",
+        ":_pywrap_tfprof",
         ":_pywrap_util_port",
         ":_pywrap_utils",
         ":array_ops",
@@ -739,6 +741,7 @@ py_library(
     srcs_version = "PY2AND3",
     deps = [
         ":_pywrap_stat_summarizer",
+        ":_pywrap_tfprof",
         ":_pywrap_util_port",
         ":_pywrap_utils",
         ":common_shapes",
@@ -1512,21 +1515,6 @@ tf_py_test(
         ":subscribe",
     ],
     main = "framework/subscribe_test.py",
-)
-
-tf_py_test(
-    name = "contrib_test",
-    size = "small",
-    srcs = ["framework/contrib_test.py"],
-    additional_deps = [
-        "//tensorflow:tensorflow_py",
-        "//tensorflow/python:client_testlib",
-    ],
-    main = "framework/contrib_test.py",
-    tags = [
-        "no_pip",
-        "no_windows",
-    ],
 )
 
 tf_py_test(
@@ -5631,9 +5619,14 @@ tf_py_test(
         ":lib",
         ":util",
     ],
-    # The multiprocessing module behaves differently on windows, so we
-    # disable this test on windows.
-    tags = ["no_windows"],
+    tags = [
+        # multiprocessing can be flaky in the internal google
+        # environment, so we disable it there.
+        "notap",
+        # The multiprocessing module behaves differently on
+        # windows, so we disable this test on windows.
+        "no_windows",
+    ],
 )
 
 cuda_py_test(
@@ -5914,6 +5907,7 @@ tf_py_test(
         ":client",
         ":client_testlib",
         ":control_flow_ops",
+        ":fake_summary_writer",
         ":framework",
         ":framework_for_generated_wrappers",
         ":nn_grad",
@@ -5923,8 +5917,6 @@ tf_py_test(
         ":training",
         ":variable_scope",
         ":variables",
-        "//tensorflow/contrib/framework:framework_py",
-        "//tensorflow/contrib/testing:testing_py",
         "//tensorflow/core:protos_all_py",
     ],
     tags = [
@@ -6016,8 +6008,6 @@ tf_py_test(
         ":summary",
         ":training",
         ":variables",
-        "//tensorflow/contrib/framework:framework_py",
-        "//tensorflow/contrib/testing:testing_py",
         "//tensorflow/core:protos_all_py",
         "//tensorflow/python/distribute:collective_all_reduce_strategy",
         "//tensorflow/python/distribute:distribute_coordinator",
@@ -6096,7 +6086,10 @@ py_library(
     name = "summary",
     srcs = glob(
         ["summary/**/*.py"],
-        exclude = ["**/*test*"],
+        exclude = [
+            "**/fake*",
+            "**/*test*",
+        ],
     ),
     srcs_version = "PY2AND3",
     visibility = ["//visibility:public"],
@@ -6117,6 +6110,19 @@ py_library(
         "//tensorflow/python/distribute:summary_op_util",
         "//tensorflow/python/eager:context",
         "@six_archive//:six",
+    ],
+)
+
+py_library(
+    name = "fake_summary_writer",
+    testonly = 1,
+    srcs = ["summary/writer/fake_summary_writer.py"],
+    srcs_version = "PY2AND3",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":framework_test_lib",
+        ":protos_all_py",
+        ":summary",
     ],
 )
 
