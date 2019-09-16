@@ -176,7 +176,6 @@ py_library(
         "//tensorflow/python/distribute:multi_worker_test_base",
         "//tensorflow/python/distribute:strategy_combinations",
         "//tensorflow/python/eager:def_function",
-        "//tensorflow/python/eager:execution_callbacks",
         "//tensorflow/python/eager:monitoring",
         "//tensorflow/python/eager:profiler",
         "//tensorflow/python/eager:profiler_client",
@@ -366,6 +365,28 @@ cc_library(
         "//tensorflow/c:c_api",
         "//tensorflow/core:lib",
         "//third_party/python_runtime:headers",
+    ],
+)
+
+cc_library(
+    name = "pybind11_absl",
+    hdrs = ["lib/core/pybind11_absl.h"],
+    features = ["-parse_headers"],
+    deps = [
+        "//tensorflow/core/platform:stringpiece",
+        "@pybind11",
+    ],
+)
+
+cc_library(
+    name = "pybind11_status",
+    hdrs = ["lib/core/pybind11_status.h"],
+    features = ["-parse_headers"],
+    deps = [
+        ":py_exception_registry",
+        "//tensorflow/core:lib",
+        "//third_party/python_runtime:headers",
+        "@pybind11",
     ],
 )
 
@@ -972,7 +993,7 @@ py_library(
         ":tensor_shape",
         ":util",
         "//tensorflow/core:protos_all_py",
-        "//tensorflow/python/eager:execution_callbacks",
+        "//tensorflow/python:op_callbacks",
         "@six_archive//:six",
     ],
 )
@@ -1035,7 +1056,6 @@ cuda_py_test(
         ":sparse_tensor",
         "//third_party/py/numpy",
         "//tensorflow/python/eager:execute",
-        "//tensorflow/python/eager:execution_callbacks",
         "//tensorflow/python/eager:test",
         "//tensorflow/python/keras",
     ],
@@ -4272,9 +4292,9 @@ cuda_py_test(
         ":client_testlib",
         ":framework_for_generated_wrappers",
         ":math_ops",
+        "//tensorflow/python/debug:check_numerics_callback",
         "//tensorflow/python/eager:backprop",
         "//tensorflow/python/eager:context",
-        "//tensorflow/python/eager:execution_callbacks",
         "//third_party/py/numpy",
     ],
     tags = ["no_windows_gpu"],
@@ -5112,6 +5132,7 @@ genrule(
     name = "pybind_symbol_target_libs_file",
     srcs = [
         ":cpp_python_util",  # util
+        "//tensorflow/core:util_port",  # util_port
         "//tensorflow/stream_executor:stream_executor_pimpl",  # stat_summarizer
         "//tensorflow/core/profiler/internal:print_model_analysis",  # tfprof
     ],
