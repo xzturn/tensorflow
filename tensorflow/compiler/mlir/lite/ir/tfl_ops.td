@@ -1772,15 +1772,11 @@ def TFL_ReshapeOp: TFL_Op<"reshape", [
     by the output type.
   }];
 
-  let arguments = (ins AnyTensor:$input);
+  let arguments = (
+    ins AnyTensor:$input,
+    I32Tensor:$shape);
 
   let results = (outs AnyTensor:$output);
-
-  DerivedShapeAttr new_shape = DerivedShapeAttr<[{
-    return getResult()->getType().cast<ShapedType>().getShape();
-  }]>;
-
-  let hasOptions = 1;
   let hasCanonicalizer = 0b1;
   let hasFolder = 1;
 }
@@ -2655,7 +2651,8 @@ def LstmProjectionWeightBiasConstraint : PredOpTrait<
   "either projection weight must be specified or both projection weight and "
   "projection bias must not be specified",
    Or<[
-      And<[TCopVTEtIs<16, NoneType>, TCopVTEtIs<17, NoneType>]>,
+      And<[TypeIsPred<"projection_weights", NoneType>,
+           TypeIsPred<"projection_bias", NoneType>]>,
       Neg<TypeIsPred<"projection_weights", NoneType>>]>>;
 
 // TODO(b/137798843): Need to add two additional constraints for both LSTM and

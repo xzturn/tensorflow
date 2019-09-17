@@ -377,6 +377,32 @@ class HasAnyRankOfPred<list<int> ranks> : And<[
 class VectorOf<list<Type> allowedTypes> :
   ShapedContainerType<allowedTypes, IsVectorTypePred, "vector">;
 
+// Whether the number of elements of a vector is from the given
+// `allowedLengths` list
+class IsVectorOfLengthPred<list<int> allowedLengths> :
+  And<[IsVectorTypePred,
+       Or<!foreach(allowedlength, allowedLengths,
+                   CPred<[{$_self.cast<VectorType>().getNumElements()
+                           == }]
+                         # allowedlength>)>]>;
+
+// Any vector where the number of elements is from the given
+// `allowedLengths` list
+class VectorOfLength<list<int> allowedLengths> : Type<
+  IsVectorOfLengthPred<allowedLengths>,
+  " of length " # StrJoinInt<allowedLengths, "/">.result>;
+
+
+// Any vector where the number of elements is from the given
+// `allowedLengths` list and the type is from the given `allowedTypes`
+// list
+class VectorOfLengthAndType<list<int> allowedLengths,
+                            list<Type> allowedTypes> : Type<
+  And<[VectorOf<allowedTypes>.predicate,
+       VectorOfLength<allowedLengths>.predicate]>,
+  VectorOf<allowedTypes>.description #
+  VectorOfLength<allowedLengths>.description>;
+
 def AnyVector : VectorOf<[AnyType]>;
 
 // Tensor types.
@@ -761,6 +787,10 @@ class EnumAttrInfo<string name, list<EnumAttrCaseInfo> cases> {
   // List of all accepted cases
   list<EnumAttrCaseInfo> enumerants = cases;
 
+  // Whether to skip automatically generating C++ enum class and utility
+  // functions for this enum attribute with EnumsGen.
+  bit skipAutoGen = 0;
+
   // The following fields are only used by the EnumsGen backend to generate
   // an enum class definition and conversion utility functions.
 
@@ -798,9 +828,10 @@ class EnumAttrInfo<string name, list<EnumAttrCaseInfo> cases> {
   // corresponding string. It will have the following signature:
   //
   // ```c++
-  // llvm::StringRef <fn-name>(<qualified-enum-class-name>);
+  // <return-type> <fn-name>(<qualified-enum-class-name>);
   // ```
   string symbolToStringFnName = "stringify" # name;
+  string symbolToStringFnRetType = "llvm::StringRef";
 
   // The name of the utility function that returns the max enum value used
   // within the enum class. It will have the following signature:
