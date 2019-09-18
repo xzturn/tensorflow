@@ -491,6 +491,8 @@ def TFL_ConcatenationOp : TFL_Op<"concatenation",
   let hasOptions = 1;
 
   let hasFolder = 1;
+
+  let verifier = [{ return Verify(*this); }];
 }
 
 def TFL_ConstOp : Op<TFL_Dialect, "pseudo_const", [NoSideEffect,
@@ -1643,6 +1645,7 @@ def TFL_PadOp : TFL_Op<"pad", [
                           [0, 0, 1, 1, 0, 0]
                           [0, 0, 2, 2, 0, 0]
                           [0, 0, 0, 0, 0, 0]]
+    ```
   }];
 
   let arguments = (
@@ -1688,6 +1691,7 @@ def TFL_PadV2Op : TFL_Op<"padv2", [
                           [0, 0, 1, 1, 0, 0]
                           [0, 0, 2, 2, 0, 0]
                           [0, 0, 0, 0, 0, 0]]
+    ```
   }];
 
   let arguments = (

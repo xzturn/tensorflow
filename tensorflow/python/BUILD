@@ -392,6 +392,16 @@ cc_library(
 )
 
 cc_library(
+    name = "pybind11_proto",
+    hdrs = ["lib/core/pybind11_proto.h"],
+    features = ["-parse_headers"],
+    deps = [
+        "@com_google_absl//absl/strings",
+        "@pybind11",
+    ],
+)
+
+cc_library(
     name = "kernel_registry",
     srcs = ["util/kernel_registry.cc"],
     hdrs = ["util/kernel_registry.h"],
@@ -2020,7 +2030,6 @@ tf_gen_op_wrapper_private_py(
 
 tf_gen_op_wrapper_private_py(
     name = "bitwise_ops_gen",
-    require_shape_functions = True,
     visibility = [
         "//learning/brain/python/ops:__pkg__",
         "//tensorflow/compiler/tests:__pkg__",
@@ -2053,7 +2062,6 @@ tf_gen_op_wrapper_private_py(
 
 tf_gen_op_wrapper_private_py(
     name = "audio_ops_gen",
-    require_shape_functions = True,
     visibility = [
         "//learning/brain/python/ops:__pkg__",
         "//tensorflow/contrib/framework:__pkg__",
@@ -2319,7 +2327,6 @@ tf_gen_op_wrapper_private_py(
 
 tf_gen_op_wrapper_private_py(
     name = "user_ops_gen",
-    require_shape_functions = False,
 )
 
 tf_gen_op_wrapper_private_py(
