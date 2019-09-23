@@ -132,6 +132,11 @@ private:
   /// Gets the constant's attribute and type associated with the given <id>.
   Optional<std::pair<Attribute, Type>> getConstant(uint32_t id);
 
+  /// Gets the constants's integer attribute with the given <id>. Returns a null
+  /// IntegerAttr if the given is not registered or does not correspond to an
+  /// integer constant.
+  IntegerAttr getConstantInt(uint32_t id);
+
   /// Returns a symbol to be used for the function name with the given
   /// result <id>. This tries to use the function's OpName if
   /// exists; otherwise creates one based on the <id>.
@@ -399,7 +404,11 @@ private:
   DenseMap<uint32_t, uint32_t> typeDecorations;
 
   // Result <id> to member decorations.
-  DenseMap<uint32_t, DenseMap<uint32_t, uint32_t>> memberDecorationMap;
+  // decorated-struct-type-<id> ->
+  //    (struct-member-index -> (decoration -> decoration-operands))
+  DenseMap<uint32_t,
+           DenseMap<uint32_t, DenseMap<spirv::Decoration, ArrayRef<uint32_t>>>>
+      memberDecorationMap;
 
   // Result <id> to extended instruction set name.
   DenseMap<uint32_t, StringRef> extendedInstSets;
@@ -467,7 +476,7 @@ spirv::ModuleOp Deserializer::createModuleOp() {
   // TODO(antiagainst): use target environment to select the version
   state.addAttribute("major_version", builder.getI32IntegerAttr(1));
   state.addAttribute("minor_version", builder.getI32IntegerAttr(0));
-  spirv::ModuleOp::build(&builder, &state);
+  spirv::ModuleOp::build(&builder, state);
   return cast<spirv::ModuleOp>(Operation::create(state));
 }
 
@@ -622,18 +631,22 @@ LogicalResult Deserializer::processDecoration(ArrayRef<uint32_t> words) {
 
 LogicalResult Deserializer::processMemberDecoration(ArrayRef<uint32_t> words) {
   // The binary layout of OpMemberDecorate is different comparing to OpDecorate
-  if (words.size() != 4) {
-    return emitError(unknownLoc, "OpMemberDecorate must have 4 operands");
+  if (words.size() < 3) {
+    return emitError(unknownLoc,
+                     "OpMemberDecorate must have at least 3 operands");
   }
 
-  switch (static_cast<spirv::Decoration>(words[2])) {
-  case spirv::Decoration::Offset:
-    memberDecorationMap[words[0]][words[1]] = words[3];
-    break;
-  default:
-    return emitError(unknownLoc, "unhandled OpMemberDecoration case: ")
-           << words[2];
+  auto decoration = static_cast<spirv::Decoration>(words[2]);
+  if (decoration == spirv::Decoration::Offset && words.size() != 4) {
+    return emitError(unknownLoc,
+                     " missing offset specification in OpMemberDecorate with "
+                     "Offset decoration");
   }
+  ArrayRef<uint32_t> decorationOperands;
+  if (words.size() > 3) {
+    decorationOperands = words.slice(3);
+  }
+  memberDecorationMap[words[0]][words[1]][decoration] = decorationOperands;
   return success();
 }
 
@@ -889,6 +902,14 @@ LogicalResult Deserializer::processGlobalVariable(ArrayRef<uint32_t> operands) {
   return success();
 }
 
+IntegerAttr Deserializer::getConstantInt(uint32_t id) {
+  auto constInfo = getConstant(id);
+  if (!constInfo) {
+    return nullptr;
+  }
+  return constInfo->first.dyn_cast<IntegerAttr>();
+}
+
 LogicalResult Deserializer::processName(ArrayRef<uint32_t> operands) {
   if (operands.size() < 2) {
     return emitError(unknownLoc, "OpName needs at least 2 operands");
@@ -1098,25 +1119,35 @@ LogicalResult Deserializer::processStructType(ArrayRef<uint32_t> operands) {
   }
 
   SmallVector<spirv::StructType::LayoutInfo, 0> layoutInfo;
-  // Check for layoutinfo
-  auto memberDecorationIt = memberDecorationMap.find(operands[0]);
-  if (memberDecorationIt != memberDecorationMap.end()) {
-    // Each member must have an offset
-    const auto &offsetDecorationMap = memberDecorationIt->second;
-    auto offsetDecorationMapEnd = offsetDecorationMap.end();
+  SmallVector<spirv::StructType::MemberDecorationInfo, 0> memberDecorationsInfo;
+  if (memberDecorationMap.count(operands[0])) {
+    auto &allMemberDecorations = memberDecorationMap[operands[0]];
     for (auto memberIndex : llvm::seq<uint32_t>(0, memberTypes.size())) {
-      // Check that specific member has an offset
-      auto offsetIt = offsetDecorationMap.find(memberIndex);
-      if (offsetIt == offsetDecorationMapEnd) {
-        return emitError(unknownLoc, "OpTypeStruct with <id> ")
-               << operands[0] << " must have an offset for " << memberIndex
-               << "-th member";
+      if (allMemberDecorations.count(memberIndex)) {
+        for (auto &memberDecoration : allMemberDecorations[memberIndex]) {
+          // Check for offset.
+          if (memberDecoration.first == spirv::Decoration::Offset) {
+            // If layoutInfo is empty, resize to the number of members;
+            if (layoutInfo.empty()) {
+              layoutInfo.resize(memberTypes.size());
+            }
+            layoutInfo[memberIndex] = memberDecoration.second[0];
+          } else {
+            if (!memberDecoration.second.empty()) {
+              return emitError(unknownLoc,
+                               "unhandled OpMemberDecoration with decoration ")
+                     << stringifyDecoration(memberDecoration.first)
+                     << " which has additional operands";
+            }
+            memberDecorationsInfo.emplace_back(memberIndex,
+                                               memberDecoration.first);
+          }
+        }
       }
-      layoutInfo.push_back(
-          static_cast<spirv::StructType::LayoutInfo>(offsetIt->second));
     }
   }
-  typeMap[operands[0]] = spirv::StructType::get(memberTypes, layoutInfo);
+  typeMap[operands[0]] =
+      spirv::StructType::get(memberTypes, layoutInfo, memberDecorationsInfo);
   return success();
 }
 
@@ -1868,6 +1899,32 @@ Deserializer::processOp<spirv::ExecutionModeOp>(ArrayRef<uint32_t> words) {
 
 template <>
 LogicalResult
+Deserializer::processOp<spirv::ControlBarrierOp>(ArrayRef<uint32_t> operands) {
+  if (operands.size() != 3) {
+    return emitError(
+        unknownLoc,
+        "OpControlBarrier must have execution scope <id>, memory scope <id> "
+        "and memory semantics <id>");
+  }
+
+  SmallVector<IntegerAttr, 3> argAttrs;
+  for (auto operand : operands) {
+    auto argAttr = getConstantInt(operand);
+    if (!argAttr) {
+      return emitError(unknownLoc,
+                       "expected 32-bit integer constant from <id> ")
+             << operand << " for OpControlBarrier";
+    }
+    argAttrs.push_back(argAttr);
+  }
+
+  opBuilder.create<spirv::ControlBarrierOp>(unknownLoc, argAttrs[0],
+                                            argAttrs[1], argAttrs[2]);
+  return success();
+}
+
+template <>
+LogicalResult
 Deserializer::processOp<spirv::FunctionCallOp>(ArrayRef<uint32_t> operands) {
   if (operands.size() < 3) {
     return emitError(unknownLoc,
@@ -1907,6 +1964,30 @@ Deserializer::processOp<spirv::FunctionCallOp>(ArrayRef<uint32_t> operands) {
   if (!resultTypes.empty()) {
     valueMap[resultID] = opFunctionCall.getResult(0);
   }
+  return success();
+}
+
+template <>
+LogicalResult
+Deserializer::processOp<spirv::MemoryBarrierOp>(ArrayRef<uint32_t> operands) {
+  if (operands.size() != 2) {
+    return emitError(unknownLoc, "OpMemoryBarrier must have memory scope <id> "
+                                 "and memory semantics <id>");
+  }
+
+  SmallVector<IntegerAttr, 2> argAttrs;
+  for (auto operand : operands) {
+    auto argAttr = getConstantInt(operand);
+    if (!argAttr) {
+      return emitError(unknownLoc,
+                       "expected 32-bit integer constant from <id> ")
+             << operand << " for OpMemoryBarrier";
+    }
+    argAttrs.push_back(argAttr);
+  }
+
+  opBuilder.create<spirv::MemoryBarrierOp>(unknownLoc, argAttrs[0],
+                                           argAttrs[1]);
   return success();
 }
 

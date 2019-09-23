@@ -18,6 +18,7 @@ limitations under the License.
 #include <algorithm>
 #include <cstring>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -371,7 +372,12 @@ class InferenceRunnerImpl : public InferenceRunner {
                     const std::vector<TensorTieDef>& outputs,
                     TensorTieFactory* tie_factory) {
     RETURN_IF_ERROR(LinkTensors(inputs, tie_factory, &inputs_));
-    return LinkTensors(outputs, tie_factory, &outputs_);
+    RETURN_IF_ERROR(LinkTensors(outputs, tie_factory, &outputs_));
+    for (const auto& def : outputs) {
+      output_to_cpu_ |= def.external_def.object_def.object_type ==
+                        gpu::ObjectType::CPU_MEMORY;
+    }
+    return OkStatus();
   }
 
   std::vector<TensorObjectDef> inputs() const override {
@@ -420,6 +426,10 @@ class InferenceRunnerImpl : public InferenceRunner {
     for (auto& obj : outputs_) {
       RETURN_IF_ERROR(obj->CopyToExternalObject());
     }
+    RETURN_IF_ERROR(runtime_->command_queue()->Flush());
+    if (output_to_cpu_) {
+      RETURN_IF_ERROR(runtime_->command_queue()->WaitForCompletion());
+    }
     return OkStatus();
   }
 
@@ -450,6 +460,7 @@ class InferenceRunnerImpl : public InferenceRunner {
   std::unique_ptr<ObjectManager> objects_;
   std::vector<std::unique_ptr<TensorTie>> inputs_;
   std::vector<std::unique_ptr<TensorTie>> outputs_;
+  bool output_to_cpu_ = false;
 };
 
 class InferenceBuilderImpl : public InferenceBuilder {
@@ -515,7 +526,7 @@ class InferenceBuilderImpl : public InferenceBuilder {
     CompilationOptions compiler_options;
     compiler_options.allow_precision_loss = options_.allow_precision_loss;
     compiler_options.fuse_operations = options_.fuse_operations;
-    compiler_options.allow_precision_loss = options_.inline_parameters;
+    compiler_options.inline_parameters = options_.inline_parameters;
     auto compiler = NewCompiler(kernels.get(), gpu_info_, compiler_options);
     auto workgroup_calculator = NewDefaultWorkgroupsCalculator(*gpu_info_);
     auto external_objects = absl::make_unique<ObjectManager>();

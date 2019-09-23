@@ -776,7 +776,6 @@ py_library(
         ":_pywrap_tfprof",
         ":_pywrap_util_port",
         ":_pywrap_utils",
-        ":common_shapes",
         ":composite_tensor",
         ":convert_to_constants",
         ":cpp_shape_inference_proto_py",
@@ -815,13 +814,7 @@ py_library(
     srcs = ["framework/common_shapes.py"],
     srcs_version = "PY2AND3",
     deps = [
-        ":cpp_shape_inference_proto_py",
-        ":errors",
-        ":framework_ops",
-        ":pywrap_tensorflow",
         ":tensor_shape",
-        ":tensor_util",
-        "//tensorflow/core:protos_all_py",
     ],
 )
 
@@ -1014,6 +1007,7 @@ py_library(
     srcs = ["framework/op_def_registry.py"],
     srcs_version = "PY2AND3",
     deps = [
+        ":pywrap_tensorflow",
         "//tensorflow/core:protos_all_py",
     ],
 )
@@ -2336,29 +2330,17 @@ tf_gen_op_wrapper_private_py(
 
 tf_gen_op_wrapper_private_py(
     name = "ragged_array_ops_gen",
-    visibility = [
-        "//learning/brain/contrib/text:__pkg__",
-        "//learning/brain/contrib/text/python/ragged:__pkg__",
-        "//tensorflow/python/ops/ragged:__pkg__",
-    ],
+    visibility = ["//tensorflow/python/ops/ragged:__pkg__"],
 )
 
 tf_gen_op_wrapper_private_py(
     name = "ragged_math_ops_gen",
-    visibility = [
-        "//learning/brain/contrib/text:__pkg__",
-        "//learning/brain/contrib/text/python/ragged:__pkg__",
-        "//tensorflow/python/ops/ragged:__pkg__",
-    ],
+    visibility = ["//tensorflow/python/ops/ragged:__pkg__"],
 )
 
 tf_gen_op_wrapper_private_py(
     name = "ragged_conversion_ops_gen",
-    visibility = [
-        "//learning/brain/contrib/text:__pkg__",
-        "//learning/brain/contrib/text/python/ragged:__pkg__",
-        "//tensorflow/python/ops/ragged:__pkg__",
-    ],
+    visibility = ["//tensorflow/python/ops/ragged:__pkg__"],
 )
 
 tf_gen_op_wrapper_private_py(
@@ -3482,6 +3464,15 @@ py_library(
 )
 
 py_library(
+    name = "parsing_config",
+    srcs = ["ops/parsing_config.py"],
+    srcs_version = "PY2AND3",
+    deps = [
+        ":framework",
+    ],
+)
+
+py_library(
     name = "parsing_ops",
     srcs = ["ops/parsing_ops.py"],
     srcs_version = "PY2AND3",
@@ -3491,6 +3482,7 @@ py_library(
         ":framework",
         ":framework_for_generated_wrappers",
         ":math_ops",
+        ":parsing_config",
         ":parsing_ops_gen",
         ":sparse_ops",
     ],
@@ -4923,24 +4915,6 @@ py_library(
     ],
 )
 
-cc_library(
-    name = "cpp_shape_inference",
-    srcs = ["framework/cpp_shape_inference.cc"],
-    hdrs = ["framework/cpp_shape_inference.h"],
-    copts = if_not_windows(["-Wno-sign-compare"]),
-    visibility = ["//visibility:public"],
-    deps = [
-        ":cpp_shape_inference_proto_cc",
-        ":numpy_lib",
-        ":py_func_lib",
-        "//tensorflow/c:tf_status_helper",
-        "//tensorflow/core:framework",
-        "//tensorflow/core:lib",
-        "//tensorflow/core:protos_all_cc",
-        "//tensorflow/python:ndarray_tensor",
-    ],
-)
-
 cuda_py_tests(
     name = "device_lib_test",
     size = "small",
@@ -5019,7 +4993,6 @@ tf_py_wrap_cc(
         "client/events_writer.i",
         "client/tf_session.i",
         "client/tf_sessionrun_wrapper.i",
-        "framework/cpp_shape_inference.i",
         "framework/python_op_gen.i",
         "grappler/cluster.i",
         "grappler/cost_analyzer.i",
@@ -5056,7 +5029,6 @@ tf_py_wrap_cc(
         ":cost_analyzer_lib",
         ":model_analyzer_lib",
         ":cpp_python_util",
-        ":cpp_shape_inference",
         ":kernel_registry",
         ":numpy_lib",
         ":safe_ptr",

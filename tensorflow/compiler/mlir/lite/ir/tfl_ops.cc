@@ -18,6 +18,7 @@ limitations under the License.
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <numeric>
 
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/APInt.h"
@@ -264,39 +265,39 @@ Attribute ConstFoldUnaryOp(Type result_type, Attribute operand,
   return {};
 }
 
-void buildComparisonBinOp(Builder *builder, OperationState *result, Value *lhs,
+void buildComparisonBinOp(Builder *builder, OperationState &result, Value *lhs,
                           Value *rhs) {
   auto result_type =
       OpTrait::util::getBroadcastedType(lhs->getType(), rhs->getType());
   if (!result_type)
-    emitError(result->location)
+    emitError(result.location)
         << "non-broadcastable operands: " << lhs->getType() << " and "
         << rhs->getType();
-  result->addOperands({lhs, rhs});
+  result.addOperands({lhs, rhs});
   // Comparison binary ops always return i1 tensor.
   if (auto shaped_type = result_type.dyn_cast<ShapedType>()) {
     auto resultShape = shaped_type.getShape();
-    result->types.push_back(
+    result.types.push_back(
         builder->getTensorType(resultShape, builder->getI1Type()));
   } else {
-    result->types.push_back(builder->getTensorType(builder->getI1Type()));
+    result.types.push_back(builder->getTensorType(builder->getI1Type()));
   }
 }
 
-void buildFusedBroadcastableBinOp(Builder *builder, OperationState *result,
+void buildFusedBroadcastableBinOp(Builder *builder, OperationState &result,
                                   Value *lhs, Value *rhs,
                                   StringAttr fused_activation_function) {
   auto result_type =
       OpTrait::util::getBroadcastedType(lhs->getType(), rhs->getType());
 
   if (!result_type)
-    emitError(result->location)
+    emitError(result.location)
         << "non-broadcastable operands: " << lhs->getType() << " and "
         << rhs->getType();
 
-  result->addOperands({lhs, rhs});
-  result->addAttribute("fused_activation_function", fused_activation_function);
-  result->types.push_back(result_type);
+  result.addOperands({lhs, rhs});
+  result.addAttribute("fused_activation_function", fused_activation_function);
+  result.types.push_back(result_type);
 }
 
 }  // end anonymous namespace
@@ -432,9 +433,64 @@ LogicalResult Verify(ConcatenationOp op) {
                                     operand_types, axis);
 }
 
+// Returns true when all operands are instances of DenseElementsAttr and the
+// output type has a static shape.
+bool IsConcatenationOpConstFoldable(ConcatenationOp op,
+                                    ArrayRef<Attribute> operands,
+                                    RankedTensorType output_type,
+                                    int64_t axis) {
+  if (operands.empty()) return false;
+  if (!output_type.hasStaticShape()) return false;
+  if (axis < 0) return false;
+
+  return llvm::all_of(operands, [](Attribute operand) {
+    return operand && operand.isa<DenseElementsAttr>();
+  });
+}
+
+DenseElementsAttr ConstFoldConcatenateOpDense(ArrayRef<Attribute> operands,
+                                              RankedTensorType output_type,
+                                              int64_t axis) {
+  const auto outer_dims = output_type.getShape().take_front(axis);
+  const int64_t outer_size = std::accumulate(
+      outer_dims.begin(), outer_dims.end(), 1, std::multiplies<int64_t>());
+
+  const auto base_inner_dims = output_type.getShape().drop_front(axis + 1);
+  const int64_t base_inner_size =
+      std::accumulate(base_inner_dims.begin(), base_inner_dims.end(), 1,
+                      std::multiplies<int64_t>());
+
+  // Splits each input operand into outer_size pieces and combines them in
+  // round-robin ordering.
+  std::vector<Attribute> out_attrs(output_type.getNumElements());
+  int64_t out = 0;
+  for (int64_t outer = 0; outer < outer_size; ++outer) {
+    for (auto op : operands) {
+      const int64_t dim_size =
+          op.getType().cast<RankedTensorType>().getDimSize(axis);
+      const int64_t inner_size = dim_size * base_inner_size;
+
+      auto input_attrs = op.cast<DenseElementsAttr>().getValues<Attribute>();
+      auto input_iter = input_attrs.begin() + outer * inner_size;
+      for (int64_t inner = 0; inner < inner_size; ++inner)
+        out_attrs[out++] = *input_iter++;
+    }
+  }
+
+  return DenseElementsAttr::get(output_type, out_attrs);
+}
+
 }  // end anonymous namespace
 
 OpFoldResult ConcatenationOp::fold(ArrayRef<Attribute> operands) {
+  if (fused_activation_function() == "NONE") {
+    if (auto output_type = output()->getType().dyn_cast<RankedTensorType>()) {
+      const int64_t axis = GetConcatenationOpAxis(*this);
+      if (IsConcatenationOpConstFoldable(*this, operands, output_type, axis))
+        return ConstFoldConcatenateOpDense(operands, output_type, axis);
+    }
+  }
+
   // Remove all empty values.
   SmallVector<Value *, 4> non_empty_values;
   for (Value *value : this->values()) {
@@ -466,7 +522,7 @@ OpFoldResult ConcatenationOp::fold(ArrayRef<Attribute> operands) {
 // GatherOp
 //===----------------------------------------------------------------------===//
 
-static void BuildGatherOp(Builder *builder, OperationState *result,
+static void BuildGatherOp(Builder *builder, OperationState &result,
                           Value *params, Value *indices, IntegerAttr axis) {
   auto params_type = params->getType().cast<TensorType>();
   auto indices_type = indices->getType().cast<TensorType>();
@@ -493,7 +549,7 @@ static void BuildGatherOp(Builder *builder, OperationState *result,
 
   // params must be atleast rank axis + 1
   if (params_rank < axis_i + 1) {
-    emitError(result->location, "params must be atleast rank axis + 1");
+    emitError(result.location, "params must be atleast rank axis + 1");
   }
 
   if (indices_rank == 0) {
@@ -724,7 +780,7 @@ OpFoldResult SubOp::fold(ArrayRef<Attribute> operands) {
 // TopKOp
 //===----------------------------------------------------------------------===//
 
-static void BuildTopKOp(Builder *builder, OperationState *result, Value *input,
+static void BuildTopKOp(Builder *builder, OperationState &result, Value *input,
                         Value *k) {
   // Output size is only known if k is constant value. A negative dimension is
   // considered dynamic so use -1 here if k is not a constant value.
