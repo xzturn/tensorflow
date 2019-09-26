@@ -2561,7 +2561,14 @@ def to_variant(dataset):
     "data.DatasetSpec",
     v1=["data.DatasetSpec", "data.experimental.DatasetStructure"])
 class DatasetSpec(type_spec.BatchableTypeSpec):
-  """Type specification for `tf.data.Dataset`."""
+  """Type specification for `tf.data.Dataset`.
+
+  See `tf.TypeSpec` for more information about TensorFlow type specifications.
+
+  >>> dataset = tf.data.Dataset.range(3)
+  >>> tf.data.DatasetSpec.from_value(dataset)
+  DatasetSpec(TensorSpec(shape=(), dtype=tf.int64, name=None), TensorShape([]))
+  """
 
   __slots__ = ["_element_spec", "_dataset_shape"]
 
@@ -2598,6 +2605,7 @@ class DatasetSpec(type_spec.BatchableTypeSpec):
 
   @staticmethod
   def from_value(value):
+    """Creates a `DatasetSpec` for the given `tf.data.Dataset` value."""
     return DatasetSpec(value.element_spec)  # pylint: disable=protected-access
 
   def _batch(self, batch_size):
@@ -2795,15 +2803,8 @@ class StructuredFunctionWrapper(object):
 
       resource_tracker = tracking.ResourceTracker()
       with tracking.resource_tracker_scope(resource_tracker):
-        self._function = (
-            wrapper_fn._get_concrete_function_internal_garbage_collected())
-
-        # TODO(jsimsa): Garbage collecting functions containing PyFunc nodes
-        # triggers use-after-free. Figure out why and stop excluding functions
-        # with PyFunc nodes from garbage collection.
-        for node in self._function.function_def.node_def:
-          if node.op in ("PyFunc", "PyFuncStateless", "EagerPyFunc"):
-            self._function._garbage_collector.release()
+        # TODO(b/141462134): Switch to using garbage collection.
+        self._function = wrapper_fn._get_concrete_function_internal()
 
         if add_to_graph:
           self._function.add_to_graph(ops.get_default_graph())
