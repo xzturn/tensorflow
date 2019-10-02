@@ -21,6 +21,7 @@ package_group(
         "//...",
         "//learning/brain/swift/swift_mlir/...",
         "//learning/glassbox/evaluation/compiler/...",
+        "//tensorflow/compiler/tf2xla/...",
         "//third_party/tf_runtime_google/...",
     ],
 )
@@ -1667,6 +1668,7 @@ cc_library(
         "lib/TableGen/Constraint.cpp",
         "lib/TableGen/Dialect.cpp",
         "lib/TableGen/Format.cpp",
+        "lib/TableGen/OpInterfaces.cpp",
         "lib/TableGen/OpTrait.cpp",
         "lib/TableGen/Operator.cpp",
         "lib/TableGen/Pattern.cpp",
@@ -1681,6 +1683,7 @@ cc_library(
         "include/mlir/TableGen/Format.h",
         "include/mlir/TableGen/GenInfo.h",
         "include/mlir/TableGen/GenNameParser.h",
+        "include/mlir/TableGen/OpInterfaces.h",
         "include/mlir/TableGen/OpTrait.h",
         "include/mlir/TableGen/Operator.h",
         "include/mlir/TableGen/Pattern.h",
