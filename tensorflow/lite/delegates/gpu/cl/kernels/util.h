@@ -44,11 +44,20 @@ enum class TextureAddressMode {
 class TensorCodeGenerator {
  public:
   struct SizeVariablesNames {
+    SizeVariablesNames() = default;
+    SizeVariablesNames(const std::string& width_name,
+                       const std::string& height_name,
+                       const std::string& depth_name);
+    SizeVariablesNames(const std::string& width_name,
+                       const std::string& height_name,
+                       const std::string& depth_name,
+                       const std::string& batch_name);
+
     std::string width = "unknown";
     std::string height = "unknown";
     std::string channels = "unknown";
     std::string depth = "unknown";
-    std::string batch_size = "unknown";
+    std::string batch = "unknown";
   };
   TensorCodeGenerator() = default;
   TensorCodeGenerator(const std::string& name,
@@ -125,6 +134,13 @@ class TensorCodeGenerator {
   SizeVariablesNames sizes_;
   TensorDescriptor descriptor_;
 };
+
+// Calculates correct X coordinate when stride != 1 and batch != 1 for
+// DHWBC4, HDWBC4, HWBC layouts
+std::string GetXStrideCorrected(const std::string& src_x,
+                                const std::string& batch_size,
+                                const std::string& stride_x,
+                                const std::string& padding_x);
 
 template <DataType S, typename T>
 void RearrangeWeightsToOHWI4I4O(const ::tflite::gpu::Tensor<OHWI, S>& weights,

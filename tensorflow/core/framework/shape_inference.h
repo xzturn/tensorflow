@@ -27,9 +27,6 @@ limitations under the License.
 
 namespace tensorflow {
 
-class ShapeRefiner;
-class ShapeRefinerTest;
-
 namespace grappler {
 class GraphProperties;
 class SymbolicShapeManager;
@@ -72,8 +69,6 @@ class DimensionHandle {
   friend class InferenceContext;
   friend class ShapeInferenceTest;
   friend class ShapeInferenceTestutil;
-  friend class ::tensorflow::ShapeRefinerTest;
-  friend class ShapeManager;
   friend class ::tensorflow::grappler::GraphProperties;
   friend class ::tensorflow::grappler::SymbolicShapeManager;
 
@@ -91,7 +86,6 @@ class Shape {
   const std::vector<DimensionHandle> dims_;
 
   friend class InferenceContext;
-  friend class ShapeManager;
   friend class ::tensorflow::grappler::SymbolicShapeManager;
 
   TF_DISALLOW_COPY_AND_ASSIGN(Shape);
@@ -113,8 +107,6 @@ class ShapeHandle {
   friend class InferenceContext;
   friend class ShapeInferenceTest;
   friend class ShapeInferenceTestutil;
-  friend class ::tensorflow::ShapeRefinerTest;
-  friend class ShapeManager;
   friend class ::tensorflow::grappler::SymbolicShapeManager;
 
   // Intentionally copyable.
@@ -334,7 +326,6 @@ class InferenceContext {
   }
 
   static int32 Rank(ShapeHandle s) {
-    DCHECK(s.IsSet());
     return s.IsSet() ? s->rank_ : kUnknownRank;
   }
   static bool RankKnown(ShapeHandle s) {
@@ -658,9 +649,6 @@ class InferenceContext {
   };
 
   friend class ::tensorflow::grappler::GraphProperties;
-
-  // Friend for user-defined function shape inference purposes.
-  friend class ::tensorflow::ShapeRefiner;
 
   friend class ShapeInferenceTest;      // For testing Relax functions.
   friend class ShapeInferenceTestutil;  // For testing shapes.

@@ -2071,6 +2071,10 @@ class DatasetV1(DatasetV2):
     return DatasetV1Adapter(super(DatasetV1, self).window(
         size, shift, stride, drop_remainder))
 
+  @functools.wraps(DatasetV2.unbatch)
+  def unbatch(self):
+    return DatasetV1Adapter(super(DatasetV1, self).unbatch())
+
   @functools.wraps(DatasetV2.with_options)
   def with_options(self, options):
     return DatasetV1Adapter(super(DatasetV1, self).with_options(options))
@@ -2720,7 +2724,7 @@ class StructuredFunctionWrapper(object):
          function_utils.get_func_name(func)])
     # Sanitize function name to remove symbols that interfere with graph
     # construction.
-    for symbol in ["<", ">"]:
+    for symbol in ["<", ">", "\\", "'", " "]:
       func_name = func_name.replace(symbol, "")
 
     ag_ctx = autograph_ctx.control_status_ctx()

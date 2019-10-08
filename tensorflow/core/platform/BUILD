@@ -13,11 +13,8 @@ load(
     "tf_additional_lib_hdrs",
     "tf_additional_lib_srcs",
     "tf_additional_libdevice_srcs",
-    "tf_additional_minimal_lib_srcs",
     "tf_additional_monitoring_srcs",
     "tf_additional_proto_hdrs",
-    "tf_additional_rocdl_deps",
-    "tf_additional_rocdl_srcs",
     "tf_additional_tensor_coding_deps",
     "tf_additional_test_srcs",
     "tf_platform_hdrs",
@@ -28,6 +25,7 @@ load(
 load(
     "//tensorflow/core/platform:default/build_refactor.bzl",
     "tf_instantiate_platform_libraries",
+    "tf_logging_deps",
     "tf_mobile_aware_deps",
     "tf_platform_helper_deps",
 )
@@ -68,8 +66,11 @@ tf_instantiate_platform_libraries(names = [
     "notification",
     "platform_port",
     "rocm_rocdl_path",
+    "stacktrace",
+    "stacktrace_handler",
     "strong_hash",
     "subprocess",
+    "test",
     "tracing",
     "types",
     "unbounded_work_queue",
@@ -236,12 +237,6 @@ cc_library(
 )
 
 cc_library(
-    name = "host_info",
-    hdrs = ["host_info.h"],
-    deps = [":types"],
-)
-
-cc_library(
     name = "human_readable_json",
     textual_hdrs = ["human_readable_json.h"],
     deps = [
@@ -280,7 +275,7 @@ cc_library(
 cc_library(
     name = "logging",
     textual_hdrs = ["logging.h"],
-    deps = tf_mobile_aware_deps("logging_impl"),
+    deps = tf_logging_deps(),
 )
 
 cc_library(
@@ -291,9 +286,7 @@ cc_library(
 cc_library(
     name = "mutex",
     textual_hdrs = ["mutex.h"],
-    deps = [
-        ":mutex_impl",
-    ],
+    deps = tf_mobile_aware_deps("mutex_impl"),
 )
 
 cc_library(
@@ -306,9 +299,8 @@ cc_library(
     name = "notification",
     hdrs = ["notification.h"],
     deps = [
-        ":notification_impl",
         ":platform",
-    ],
+    ] + tf_mobile_aware_deps("notification_impl"),
 )
 
 cc_library(
@@ -457,26 +449,16 @@ cc_library(
 
 cc_library(
     name = "stacktrace",
-    srcs = tf_platform_srcs([
-        "stacktrace.h",
-        "stacktrace.cc",
-    ]),
     hdrs = ["stacktrace.h"],
     deps = [
-        ":abi",
         ":platform",
-        "//tensorflow/core/platform/default/build_config:stacktrace",
-    ],
+    ] + tf_platform_helper_deps("stacktrace_impl"),
 )
 
 cc_library(
     name = "stacktrace_handler",
-    srcs = tf_platform_srcs(["stacktrace_handler.cc"]),
-    hdrs = ["stacktrace_handler.h"],
-    deps = [
-        ":platform",
-        ":stacktrace",
-    ],
+    textual_hdrs = ["stacktrace_handler.h"],
+    deps = tf_platform_helper_deps("stacktrace_handler_impl"),
 )
 
 cc_library(
@@ -567,6 +549,13 @@ cc_library(
 )
 
 cc_library(
+    name = "test",
+    testonly = True,
+    textual_hdrs = ["test.h"],
+    deps = [":test_impl"],
+)
+
+cc_library(
     name = "thread_annotations",
     hdrs = ["thread_annotations.h"],
 )
@@ -647,6 +636,7 @@ filegroup(
             "**/stream_executor.h",
             "**/env_time.cc",
             "**/logger.cc",
+            "**/mutex.cc",
             "**/logging.cc",
             "**/human_readable_json.cc",
             "**/rocm.h",
@@ -717,11 +707,16 @@ filegroup(
         ],
         exclude = [
             "annotation.h",
+            "dynamic_annotations.h",
+            "denormal.h",
             "gif.h",
             "jpeg.h",
             "png.h",
+            "setround.h",
             "stringprintf.h",
+            "strong_hash.h",
             "str_util.h",
+            "thread_annotations.h",
             "**/cuda.h",
             "**/rocm.h",
             "**/stream_executor.h",
@@ -744,16 +739,19 @@ filegroup(
             "**/monitoring.cc",
             "**/cuda_libdevice_path.cc",
             "**/logger.cc",
+            "**/mutex.cc",
             "**/logging.cc",
             "**/human_readable_json.cc",
             "**/rocm_rocdl_path.cc",
             "abi.cc",
             "annotation.cc",
             "cpu_info.cc",
+            "denormal.cc",
             "numbers.cc",
             "platform_strings.cc",
             "protobuf.cc",
             "scanner.cc",
+            "setround.cc",
             "strcat.cc",
             "stringprintf.cc",
             "str_util.cc",
@@ -769,12 +767,6 @@ filegroup(
 )
 
 filegroup(
-    name = "legacy_minimal_lib_srcs",
-    srcs = tf_additional_minimal_lib_srcs(),
-    visibility = ["//tensorflow/core:__pkg__"],
-)
-
-filegroup(
     name = "legacy_libdevice_srcs",
     srcs = tf_additional_libdevice_srcs(),
     visibility = ["//tensorflow/core:__pkg__"],
@@ -783,57 +775,6 @@ filegroup(
 filegroup(
     name = "legacy_monitoring_srcs",
     srcs = tf_additional_monitoring_srcs(),
-    visibility = ["//tensorflow/core:__pkg__"],
-)
-
-filegroup(
-    name = "legacy_platform_port_srcs",
-    srcs = tf_platform_hdrs([
-        "cpu_info.h",
-        "dynamic_annotations.h",
-        "thread_annotations.h",
-        "mutex.h",
-    ]) + tf_platform_srcs([
-        "port.cc",
-    ]),
-    visibility = ["//tensorflow/core:__pkg__"],
-)
-
-filegroup(
-    name = "legacy_platform_env_srcs",
-    srcs = tf_platform_srcs([
-        "env.cc",
-        "load_library.cc",
-    ]) + tf_platform_hdrs([
-        "wide_char.h",
-    ]),
-    visibility = ["//tensorflow/core:__pkg__"],
-)
-
-filegroup(
-    name = "legacy_file_system_hdrs",
-    srcs = tf_platform_hdrs([
-        "windows_file_system.h",
-    ]),
-    visibility = ["//tensorflow/core:__pkg__"],
-)
-
-filegroup(
-    name = "legacy_platform_other_srcs",
-    srcs = tf_platform_srcs([
-        "subprocess.cc",
-        "net.cc",
-        "tracing.cc",
-    ]) + tf_platform_hdrs([
-        "tracing.h",
-        "error.h",
-        "context.h",
-        "fingerprint.h",
-        "notification.h",
-        "strong_hash.h",
-        "subprocess.h",
-        "tracing_impl.h",
-    ]),
     visibility = ["//tensorflow/core:__pkg__"],
 )
 

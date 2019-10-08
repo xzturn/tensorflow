@@ -12,6 +12,7 @@ tensorflow/python/tpu/profiler/pip_package/BUILD
 tensorflow/python/tpu/profiler/pip_package/README
 tensorflow/python/tpu/profiler/pip_package/build_pip_package.sh
 tensorflow/python/tpu/profiler/pip_package/setup.py
+tensorflow/python/tpu/tpu.bzl
 tensorflow/stream_executor/build_defs.bzl
 tensorflow/third_party/BUILD
 tensorflow/third_party/__init__.py
@@ -28,7 +29,7 @@ tensorflow/third_party/clang_toolchain/cc_configure_clang.bzl
 tensorflow/third_party/clang_toolchain/download_clang.bzl
 tensorflow/third_party/codegen.BUILD
 tensorflow/third_party/com_google_absl.BUILD
-tensorflow/third_party/com_google_absl_fix_mac_build.patch
+tensorflow/third_party/com_google_absl.patch
 tensorflow/third_party/common.bzl
 tensorflow/third_party/cub.BUILD
 tensorflow/third_party/curl.BUILD
