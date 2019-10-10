@@ -1,4 +1,4 @@
-/* Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2019 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,17 +12,21 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-#include "tensorflow/lite/experimental/micro/examples/micro_speech/micro_features/log_scale_util.h"
 
-void LogScaleFillConfigWithDefaults(struct LogScaleConfig* config) {
-  config->enable_log = 1;
-  config->scale_shift = 6;
-}
+#include <Python.h>
 
-int LogScalePopulateState(tflite::ErrorReporter* error_reporter,
-                          const struct LogScaleConfig* config,
-                          struct LogScaleState* state) {
-  state->enable_log = config->enable_log;
-  state->scale_shift = config->scale_shift;
-  return 1;
-}
+#include <array>
+
+#include "include/pybind11/pybind11.h"
+#include "include/pybind11/pytypes.h"
+#include "tensorflow/python/lib/core/py_exception_registry.h"
+
+namespace py = pybind11;
+
+PYBIND11_MODULE(_pywrap_py_exception_registry, m) {
+  m.def("PyExceptionRegistry_Init", [](py::object& code_to_exc_type_map) {
+    tensorflow::PyExceptionRegistry::Init(code_to_exc_type_map.ptr());
+  });
+  m.def("PyExceptionRegistry_Lookup",
+        [](TF_Code code) { tensorflow::PyExceptionRegistry::Lookup(code); });
+};
