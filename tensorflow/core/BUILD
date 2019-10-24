@@ -405,20 +405,6 @@ alias(
     actual = "//tensorflow/core/platform:human_readable_json",
 )
 
-cc_library(
-    name = "logger",
-    srcs = ["//tensorflow/core/platform:logger.cc"],
-    hdrs = ["//tensorflow/core/platform:logger.h"],
-    copts = tf_copts(),
-    visibility = ["//visibility:public"],
-    deps = [
-        ":lib",
-        ":lib_proto_parsing",
-        "@com_google_absl//absl/base",
-        "@com_google_absl//absl/synchronization",
-    ],
-)
-
 filegroup(
     name = "platform_env_hdrs",
     srcs = [
@@ -446,6 +432,7 @@ filegroup(
         "//tensorflow/core/platform:cpu_feature_guard.h",
         "//tensorflow/core/platform:error.h",
         "//tensorflow/core/platform:fingerprint.h",
+        "//tensorflow/core/platform:logger.h",
         "//tensorflow/core/platform:monitoring.h",
         "//tensorflow/core/platform:net.h",
         "//tensorflow/core/platform:notification.h",
@@ -2311,13 +2298,16 @@ cc_library(
         "//tensorflow/core/platform:error",
         "//tensorflow/core/platform:file_statistics",
         "//tensorflow/core/platform:load_library",
+        "//tensorflow/core/platform:logger",
         "//tensorflow/core/platform:mutex",
         "//tensorflow/core/platform:notification",
         "//tensorflow/core/platform:net",
+        "//tensorflow/core/platform:null_file_system",
         "//tensorflow/core/platform:numbers",
         "//tensorflow/core/platform:platform_port",
         "//tensorflow/core/platform:platform_strings",
         "//tensorflow/core/platform:prefetch",
+        "//tensorflow/core/platform:protobuf_internal",
         "//tensorflow/core/platform:regexp",
         "//tensorflow/core/platform:scanner",
         "//tensorflow/core/platform:setround",
@@ -2331,6 +2321,7 @@ cc_library(
         "//tensorflow/core/platform:threadpool_interface",
         "//tensorflow/core/platform:threadpool_options",
         "//tensorflow/core/platform:tracing",
+        "//tensorflow/core/platform:tstring",
         "//tensorflow/core/platform:unbounded_work_queue",
         "//tensorflow/core/platform/default/build_config:platformlib",
         "@snappy",
