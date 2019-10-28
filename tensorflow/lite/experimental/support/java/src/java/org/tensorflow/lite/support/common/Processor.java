@@ -12,33 +12,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
-#include "tensorflow/lite/profiling/memory_info.h"
 
-#ifndef _MSC_VER
-#include <malloc.h>
-#include <sys/resource.h>
-#include <sys/time.h>
-#endif
+package org.tensorflow.lite.support.common;
 
-namespace tflite {
-namespace profiling {
-namespace memory {
-
-const int MemoryUsage::kValueNotSet = 0;
-
-MemoryUsage GetMemoryUsage() {
-  MemoryUsage result;
-#ifndef _MSC_VER
-  rusage res;
-  if (getrusage(RUSAGE_SELF, &res) == 0) {
-    result.max_rss_kb = res.ru_maxrss;
-  }
-  const auto mem = mallinfo();
-  result.total_allocated_bytes = mem.uordblks;
-#endif
-  return result;
+/**
+ * Processes T object with prepared {@link Operator<T>}.
+ */
+public interface Processor<T> {
+  T process(T input);
 }
-
-}  // namespace memory
-}  // namespace profiling
-}  // namespace tflite

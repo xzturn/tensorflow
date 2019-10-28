@@ -4,7 +4,7 @@ Use a pre-trained model to category a paragraph into predefined groups.
 
 ## Get started
 
-<img src="images/screenshot.png" class="attempt-right" style="max-width: 300px">
+<img src="images/screenshot.gif" class="attempt-right" style="max-width: 300px">
 
 If you are new to TensorFlow Lite and are working with Android, we recommend
 exploring the following example applications that can help you get started.
@@ -55,7 +55,7 @@ Here are the steps to classify a paragraph with the model:
 ## Use your training dataset
 
 Follow this
-[tutorial](https://github.com/tensorflow/examples/tree/master/lite/examples/model_customization/demo/image_classification.ipynb)
+[tutorial](https://github.com/tensorflow/examples/tree/master/tensorflow_examples/lite/model_customization/demo/text_classification.ipynb)
 to apply the same technique used here to train a text classification model using
 your own datasets. With the right dataset, you can create a model for use cases
 such as document categorization or toxic comments detection.
