@@ -956,6 +956,30 @@ Given an input tensor, this function computes cosine of every
   TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
 }
 
+def TF_CrossReplicaSumOp : TF_Op<"CrossReplicaSum", [AllTypesMatch<["input", "output"]>, NoSideEffect]> {
+  let summary = "An Op to sum inputs across replicated TPU instances.";
+
+  let description = [{
+Each instance supplies its own input.
+
+For example, suppose there are 8 TPU instances: `[A, B, C, D, E, F, G, H]`.
+Passing group_assignment=`[[0,2,4,6],[1,3,5,7]]` sets `A, C, E, G` as group 0,
+and `B, D, F, H` as group 1. Thus we get the outputs:
+`[A+C+E+G, B+D+F+H, A+C+E+G, B+D+F+H, A+C+E+G, B+D+F+H, A+C+E+G, B+D+F+H]`.
+  }];
+
+  let arguments = (ins
+    TensorOf<[BF16, F32, I32, TF_Uint32]>:$input,
+    I32Tensor:$group_assignment
+  );
+
+  let results = (outs
+    TensorOf<[BF16, F32, I32, TF_Uint32]>:$output
+  );
+
+  TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
+}
+
 def TF_DepthToSpaceOp : TF_Op<"DepthToSpace", [NoSideEffect]> {
   let summary = "DepthToSpace for tensors of type T.";
 
@@ -4938,19 +4962,26 @@ def TF_UniqueOp : TF_Op<"Unique", [NoSideEffect]> {
 
   let description = [{
 This operation returns a tensor `y` containing all of the unique elements of `x`
-sorted in the same order that they occur in `x`. This operation also returns a
-tensor `idx` the same size as `x` that contains the index of each value of `x`
-in the unique output `y`. In other words:
+sorted in the same order that they occur in `x`; `x` does not need to be sorted.
+This operation also returns a tensor `idx` the same size as `x` that contains 
+the index of each value of `x` in the unique output `y`. In other words:
 
 `y[idx[i]] = x[i] for i in [0, 1,...,rank(x) - 1]`
 
-For example:
+Examples:
 
 ```
 # tensor 'x' is [1, 1, 2, 4, 4, 4, 7, 8, 8]
 y, idx = unique(x)
 y ==> [1, 2, 4, 7, 8]
 idx ==> [0, 0, 1, 2, 2, 2, 3, 4, 4]
+```
+
+```
+# tensor 'x' is [4, 5, 1, 2, 3, 3, 4, 5]
+y, idx = unique(x)
+y ==> [4, 5, 1, 2, 3]
+idx ==> [0, 1, 2, 3, 4, 4, 0, 1]
 ```
   }];
 
