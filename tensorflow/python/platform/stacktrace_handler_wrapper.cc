@@ -13,15 +13,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_COMPILER_XLA_PYTHON_XRT_H_
-#define TENSORFLOW_COMPILER_XLA_PYTHON_XRT_H_
-
 #include "include/pybind11/pybind11.h"
+#include "tensorflow/core/platform/stacktrace_handler.h"
 
-namespace tensorflow {
+namespace py = pybind11;
 
-void AddXrtSubmodule(pybind11::module* module);
-
-}  // namespace tensorflow
-
-#endif  // TENSORFLOW_COMPILER_XLA_PYTHON_XRT_H_
+PYBIND11_MODULE(_pywrap_stacktrace_handler, m) {
+  m.def("InstallStacktraceHandler",
+        &tensorflow::testing::InstallStacktraceHandler);
+};
