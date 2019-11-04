@@ -2008,7 +2008,6 @@ tf_pyclif_proto_library(
 
 tf_pyclif_proto_library(
     name = "framework/graph_pyclif",
-    deprecated_proto_lib_visibility = True,  # TODO(b/136847937)
     proto_lib = ":protos_all_cc",
     proto_srcfile = "framework/graph.proto",
     visibility = ["//visibility:public"],
@@ -2283,7 +2282,6 @@ cc_library(
         "//tensorflow/core/lib/gtl:map_util",
         "//tensorflow/core/lib/gtl:optional",
         "//tensorflow/core/lib/gtl:priority_queue_util",
-        "//tensorflow/core/lib/gtl:stl_util",
         "//tensorflow/core/lib/gtl:top_n",
         "//tensorflow/core/lib/hash:crc32c",
         "//tensorflow/core/lib/hash:hash",
@@ -3345,6 +3343,9 @@ tf_cuda_library(
     ],
     hdrs = GPU_RUNTIME_HEADERS,
     copts = tf_copts(),
+    cuda_deps = [
+        "@local_config_cuda//cuda:cudnn_header",
+    ],
     deps = [
         ":core_cpu_impl",
         ":core_cpu_lib",
