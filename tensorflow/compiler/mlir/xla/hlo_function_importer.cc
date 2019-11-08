@@ -438,6 +438,7 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
       // builder API.
       NoAttributeCase(kAdd, AddOp);
       NoAttributeCase(kAnd, AndOp);
+      NoAttributeCase(kAtan2, Atan2Op);
       NoAttributeCase(kConvert, ConvertOp);
       NoAttributeCase(kClamp, ClampOp);
       NoAttributeCase(kComplex, ComplexOp);
@@ -461,10 +462,14 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
       NoAttributeCase(kReshape, ReshapeOp);
       NoAttributeCase(kRsqrt, RsqrtOp);
       NoAttributeCase(kSelect, SelectOp);
+      NoAttributeCase(kShiftLeft, ShiftLeftOp);
+      NoAttributeCase(kShiftRightArithmetic, ShiftRightArithmeticOp);
+      NoAttributeCase(kShiftRightLogical, ShiftRightLogicalOp);
       NoAttributeCase(kSin, SinOp);
       NoAttributeCase(kSubtract, SubOp);
       NoAttributeCase(kTanh, TanhOp);
       NoAttributeCase(kTuple, TupleOp);
+      NoAttributeCase(kXor, XorOp);
       // TODO(b/129422361) Copy needs special handling because it is not defined
       // in tensorflow/compiler/xla/client/xla_builder.h.
       // See operation semantics in
