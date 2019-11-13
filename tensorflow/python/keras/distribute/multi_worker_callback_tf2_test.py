@@ -51,12 +51,7 @@ def _model_setup(test_obj, file_format):
   steps = 2
   with collective_strategy.CollectiveAllReduceStrategy().scope():
     # TODO(b/142509827): In rare cases this errors out at C++ level with the
-    # following error message:
-    # subchannel.cc:1000] Connect failed: {"created":"@1570753640.827421717",
-    # "description":"Failed to connect to remote host: Connection refused",
-    # "errno":111,"file":"third_party/grpc/src/core/lib/iomgr/tcp_client_posix.cc",
-    # "file_line":200,"os_error":"Connection refused","syscall":"connect",
-    # "target_address":"ipv6:[::1]:17271"}
+    # "Connect failed" error message.
     train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
         batch_size, steps)
     model = multi_worker_testing_utils.get_mnist_model((28, 28, 1))
@@ -111,7 +106,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, test.TestCase):
 
     # TODO(b/141948186): Remove this `with` block once b/141948186 is resolved.
     with multi_process_runner_util.try_run_and_except_connection_error(self):
-      multi_process_runner.MultiProcessRunner().run(
+      multi_process_runner.run(
           proc_model_checkpoint_saves_on_chief_but_not_otherwise,
           cluster_spec=test_base.create_cluster_spec(num_workers=2),
           args=(self, file_format))
@@ -149,7 +144,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, test.TestCase):
 
     # TODO(b/141948186): Remove this `with` block once b/141948186 is resolved.
     with multi_process_runner_util.try_run_and_except_connection_error(self):
-      multi_process_runner.MultiProcessRunner().run(
+      multi_process_runner.run(
           proc_tensorboard_saves_on_chief_but_not_otherwise,
           cluster_spec=test_base.create_cluster_spec(num_workers=2),
           args=(self,))
@@ -180,7 +175,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, test.TestCase):
 
     # TODO(b/141948186): Remove this `with` block once b/141948186 is resolved.
     with multi_process_runner_util.try_run_and_except_connection_error(self):
-      multi_process_runner.MultiProcessRunner().run(
+      multi_process_runner.run(
           proc_tensorboard_can_still_save_to_temp_even_if_it_exists,
           cluster_spec=test_base.create_cluster_spec(num_workers=2),
           args=(self,))

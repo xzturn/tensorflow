@@ -377,6 +377,18 @@ cuda_py_test(
 )
 
 cuda_py_test(
+    name = "multi_worker_callback_tf2_test",
+    srcs = ["multi_worker_callback_tf2_test.py"],
+    additional_deps = [
+        "//tensorflow/python/distribute:collective_all_reduce_strategy",
+        "//tensorflow/python/distribute:combinations",
+        "//tensorflow/python/distribute:multi_process_runner",
+        "//tensorflow/python/distribute:multi_worker_test_base",
+        "//tensorflow/python/keras/distribute:multi_worker_testing_utils",
+    ],
+)
+
+cuda_py_test(
     name = "multi_worker_fault_tolerance_test",
     srcs = ["multi_worker_fault_tolerance_test.py"],
     additional_deps = [
@@ -431,18 +443,5 @@ py_library(
         "//tensorflow/python/data/ops:dataset_ops",
         "//tensorflow/python/keras",
         "//tensorflow/python/keras/optimizer_v2",
-    ],
-)
-
-py_test(
-    name = "multi_worker_callback_tf2_test",
-    srcs = ["multi_worker_callback_tf2_test.py"],
-    python_version = "PY3",
-    deps = [
-        "//tensorflow/python/distribute:collective_all_reduce_strategy",
-        "//tensorflow/python/distribute:combinations",
-        "//tensorflow/python/distribute:multi_process_runner",
-        "//tensorflow/python/distribute:multi_worker_test_base",
-        "//tensorflow/python/keras/distribute:multi_worker_testing_utils",
     ],
 )

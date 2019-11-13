@@ -114,7 +114,9 @@ def generate_callback_test_function(custom_callable):
 
 class KerasMultiWorkerCallbackTest(test_base.IndependentWorkerTestBase,
                                    parameterized.TestCase):
-  """TODO(rchao): Migrate all tests in this class to
+  """KerasMultiWorkerCallbackTest for TF1.
+
+  TODO(rchao): Migrate all tests in this class to
   `multi_worker_callback_tf2_test`.
   """
 
