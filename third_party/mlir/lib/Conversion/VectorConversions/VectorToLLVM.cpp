@@ -1,4 +1,4 @@
-//===- LowerToLLVMDialect.cpp - conversion from Linalg to LLVM dialect ----===//
+//===- VectorToLLVM.cpp - Conversion from Vector to the LLVM dialect ------===//
 //
 // Copyright 2019 The MLIR Authors.
 //
@@ -15,7 +15,7 @@
 // limitations under the License.
 // =============================================================================
 
-#include "mlir/Conversion/VectorToLLVM/VectorToLLVM.h"
+#include "mlir/Conversion/VectorConversions/VectorConversions.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h"
 #include "mlir/Conversion/StandardToLLVM/ConvertStandardToLLVMPass.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
@@ -177,29 +177,24 @@ public:
         !targetMemRefType.hasStaticShape())
       return matchFailure();
 
-    Value *sourceMemRef = operands[0];
     auto llvmSourceDescriptorTy =
-        sourceMemRef->getType().dyn_cast<LLVM::LLVMType>();
+        operands[0]->getType().dyn_cast<LLVM::LLVMType>();
     if (!llvmSourceDescriptorTy || !llvmSourceDescriptorTy.isStructTy())
       return matchFailure();
+    MemRefDescriptor sourceMemRef(operands[0]);
 
     auto llvmTargetDescriptorTy = lowering.convertType(targetMemRefType)
                                       .dyn_cast_or_null<LLVM::LLVMType>();
     if (!llvmTargetDescriptorTy || !llvmTargetDescriptorTy.isStructTy())
       return matchFailure();
 
-    Type llvmSourceElementTy = llvmSourceDescriptorTy.getStructElementType(
-        LLVMTypeConverter::kAlignedPtrPosInMemRefDescriptor);
-    Type llvmTargetElementTy = llvmTargetDescriptorTy.getStructElementType(
-        LLVMTypeConverter::kAlignedPtrPosInMemRefDescriptor);
-
     int64_t offset;
     SmallVector<int64_t, 4> strides;
     auto successStrides =
-        getStridesAndOffset(targetMemRefType, strides, offset);
+        getStridesAndOffset(sourceMemRefType, strides, offset);
     bool isContiguous = (strides.back() == 1);
     if (isContiguous) {
-      auto sizes = targetMemRefType.getShape();
+      auto sizes = sourceMemRefType.getShape();
       for (int index = 0, e = strides.size() - 2; index < e; ++index) {
         if (strides[index] != strides[index + 1] * sizes[index + 1]) {
           isContiguous = false;
@@ -207,62 +202,43 @@ public:
         }
       }
     }
-    // Only contiguous tensors supported atm.
+    // Only contiguous source tensors supported atm.
     if (failed(successStrides) || !isContiguous)
       return matchFailure();
 
     auto int64Ty = LLVM::LLVMType::getInt64Ty(lowering.getDialect());
 
     // Create descriptor.
-    Value *desc = rewriter.create<LLVM::UndefOp>(loc, llvmTargetDescriptorTy);
+    auto desc = MemRefDescriptor::undef(rewriter, loc, llvmTargetDescriptorTy);
+    Type llvmTargetElementTy = desc.getElementType();
     // Set allocated ptr.
-    Value *allocated = rewriter.create<LLVM::ExtractValueOp>(
-        loc, llvmSourceElementTy, sourceMemRef,
-        rewriter.getIndexArrayAttr(
-            LLVMTypeConverter::kAllocatedPtrPosInMemRefDescriptor));
+    Value *allocated = sourceMemRef.allocatedPtr(rewriter, loc);
     allocated =
         rewriter.create<LLVM::BitcastOp>(loc, llvmTargetElementTy, allocated);
-    desc = rewriter.create<LLVM::InsertValueOp>(
-        op->getLoc(), llvmTargetDescriptorTy, desc, allocated,
-        rewriter.getIndexArrayAttr(
-            LLVMTypeConverter::kAllocatedPtrPosInMemRefDescriptor));
-    // Set ptr.
-    Value *ptr = rewriter.create<LLVM::ExtractValueOp>(
-        loc, llvmSourceElementTy, sourceMemRef,
-        rewriter.getIndexArrayAttr(
-            LLVMTypeConverter::kAlignedPtrPosInMemRefDescriptor));
+    desc.setAllocatedPtr(rewriter, loc, allocated);
+    // Set aligned ptr.
+    Value *ptr = sourceMemRef.alignedPtr(rewriter, loc);
     ptr = rewriter.create<LLVM::BitcastOp>(loc, llvmTargetElementTy, ptr);
-    desc = rewriter.create<LLVM::InsertValueOp>(
-        op->getLoc(), llvmTargetDescriptorTy, desc, ptr,
-        rewriter.getIndexArrayAttr(
-            LLVMTypeConverter::kAlignedPtrPosInMemRefDescriptor));
+    desc.setAlignedPtr(rewriter, loc, ptr);
     // Fill offset 0.
     auto attr = rewriter.getIntegerAttr(rewriter.getIndexType(), 0);
     auto zero = rewriter.create<LLVM::ConstantOp>(loc, int64Ty, attr);
-    desc = rewriter.create<LLVM::InsertValueOp>(
-        op->getLoc(), llvmTargetDescriptorTy, desc, zero,
-        rewriter.getIndexArrayAttr(
-            LLVMTypeConverter::kOffsetPosInMemRefDescriptor));
+    desc.setOffset(rewriter, loc, zero);
+
     // Fill size and stride descriptors in memref.
     for (auto indexedSize : llvm::enumerate(targetMemRefType.getShape())) {
       int64_t index = indexedSize.index();
       auto sizeAttr =
           rewriter.getIntegerAttr(rewriter.getIndexType(), indexedSize.value());
       auto size = rewriter.create<LLVM::ConstantOp>(loc, int64Ty, sizeAttr);
-      desc = rewriter.create<LLVM::InsertValueOp>(
-          op->getLoc(), llvmTargetDescriptorTy, desc, size,
-          rewriter.getI64ArrayAttr(
-              {LLVMTypeConverter::kSizePosInMemRefDescriptor, index}));
+      desc.setSize(rewriter, loc, index, size);
       auto strideAttr =
           rewriter.getIntegerAttr(rewriter.getIndexType(), strides[index]);
       auto stride = rewriter.create<LLVM::ConstantOp>(loc, int64Ty, strideAttr);
-      desc = rewriter.create<LLVM::InsertValueOp>(
-          op->getLoc(), llvmTargetDescriptorTy, desc, stride,
-          rewriter.getI64ArrayAttr(
-              {LLVMTypeConverter::kStridePosInMemRefDescriptor, index}));
+      desc.setStride(rewriter, loc, index, stride);
     }
 
-    rewriter.replaceOp(op, desc);
+    rewriter.replaceOp(op, {desc});
     return matchSuccess();
   }
 };
