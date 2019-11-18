@@ -288,6 +288,14 @@ gentbl(
             "-gen-op-defs",
             "include/mlir/Dialect/StandardOps/Ops.cpp.inc",
         ),
+        (
+            "-gen-enum-decls",
+            "include/mlir/Dialect/StandardOps/OpsEnums.h.inc",
+        ),
+        (
+            "-gen-enum-defs",
+            "include/mlir/Dialect/StandardOps/OpsEnums.cpp.inc",
+        ),
     ],
     tblgen = ":mlir-tblgen",
     td_file = "include/mlir/Dialect/StandardOps/Ops.td",
@@ -2281,4 +2289,15 @@ cc_library(
 filegroup(
     name = "TdFiles",
     srcs = glob(["**/*.td"]),
+)
+
+exports_files(
+    [
+        "include/mlir/Dialect/StandardOps/Ops.td",
+        "include/mlir/Analysis/CallInterfaces.td",
+        "include/mlir/Transforms/InliningUtils.h",
+        "include/mlir/IR/OpBase.td",
+        "include/mlir/Analysis/CallInterfaces.h",
+    ],
+    visibility = ["@local_config_mlir//:friends"],
 )
