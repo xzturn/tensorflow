@@ -14,9 +14,12 @@ limitations under the License.
 ==============================================================================*/
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
+#include <cstdint>
 #include <cstring>
+#include <limits>
+#include <utility>
 
+#include "fixedpoint/fixedpoint.h"
 #include "tensorflow/lite/c/builtin_op_data.h"
 #include "tensorflow/lite/kernels/activation_functor.h"
 #include "tensorflow/lite/kernels/cpu_backend_context.h"
@@ -24,7 +27,6 @@ limitations under the License.
 #include "tensorflow/lite/kernels/internal/compatibility.h"
 #include "tensorflow/lite/kernels/internal/reference/portable_tensor_utils_impl.h"
 #include "tensorflow/lite/kernels/internal/round.h"
-#include "tensorflow/lite/kernels/op_macros.h"
 
 #if defined(_MSC_VER)
 #define __restrict__ __restrict
@@ -624,13 +626,16 @@ void PortableMeanStddevNormalization(const float* input_vector,
                                      int n_batch) {
   for (int batch = 0; batch < n_batch; ++batch) {
     float sum = 0.0f;
-    float sum_sq = 0.0f;
     for (int i = 0; i < v_size; ++i) {
       sum += input_vector[i];
-      sum_sq += input_vector[i] * input_vector[i];
     }
     const float mean = sum / v_size;
-    const float variance = sum_sq / v_size - mean * mean;
+    float sum_diff_sq = 0.0f;
+    for (int i = 0; i < v_size; ++i) {
+      const float diff = input_vector[i] - mean;
+      sum_diff_sq += diff * diff;
+    }
+    const float variance = sum_diff_sq / v_size;
     constexpr float kNormalizationConstant = 1e-8f;
     const float stddev_inv =
         1.0f / std::sqrt(variance + kNormalizationConstant);
