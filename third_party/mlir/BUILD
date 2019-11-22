@@ -1627,6 +1627,7 @@ cc_library(
         ":IR",
         ":LLVMDialect",
         ":LLVMTransforms",
+        ":LinalgToLLVM",
         ":NVVMDialect",
         ":Parser",
         ":Pass",
@@ -1805,6 +1806,7 @@ cc_binary(
     srcs = ["tools/mlir-cuda-runner/mlir-cuda-runner.cpp"],
     data = [
         ":tools/libcuda-runtime-wrappers.so",
+        "@local_config_mlir//test/mlir-cpu-runner:libmlir_runner_utils.so",
     ],
     deps = [
         ":GPUDialect",
@@ -2120,8 +2122,19 @@ gentbl(
     ],
 )
 
+filegroup(
+    name = "LinalgTransformPatternsTdFiles",
+    srcs = [
+        "include/mlir/Dialect/Linalg/Transforms/LinalgTransformPatterns.td",
+        ":AffineOpsTdFiles",
+        ":LinalgLibraryOpsTdFiles",
+        ":LinalgOpsTdFiles",
+        ":OpBaseTdFiles",
+    ],
+)
+
 gentbl(
-    name = "LinalgTransformPatterns",
+    name = "LinalgTransformPatternsIncGen",
     tbl_outs = [
         (
             "-gen-rewriters",
@@ -2131,10 +2144,37 @@ gentbl(
     tblgen = ":mlir-tblgen",
     td_file = "include/mlir/Dialect/Linalg/Transforms/LinalgTransformPatterns.td",
     td_srcs = [
-        "include/mlir/IR/OpBase.td",
-        ":LinalgOpsTdFiles",
-        ":LinalgLibraryOpsTdFiles",
+        ":LinalgTransformPatternsTdFiles",
     ],
+)
+
+cc_library(
+    name = "LinalgToLLVM",
+    srcs = [
+        "lib/Conversion/LinalgToLLVM/LinalgToLLVM.cpp",
+    ],
+    hdrs = [
+        "include/mlir/Conversion/LinalgToLLVM/LinalgToLLVM.h",
+    ],
+    includes = ["include"],
+    deps = [
+        ":AffineToStandardTransforms",
+        ":Analysis",
+        ":CFGTransforms",
+        ":EDSC",
+        ":IR",
+        ":LLVMDialect",
+        ":LLVMTransforms",
+        ":Linalg",
+        ":Pass",
+        ":StandardOps",
+        ":Support",
+        ":Transforms",
+        ":VectorConversions",
+        "@llvm//:core",
+        "@llvm//:support",
+    ],
+    alwayslink = 1,
 )
 
 cc_library(
@@ -2145,7 +2185,6 @@ cc_library(
         "lib/Dialect/Linalg/IR/LinalgTypes.cpp",
         "lib/Dialect/Linalg/Transforms/Fusion.cpp",
         "lib/Dialect/Linalg/Transforms/LinalgTransforms.cpp",
-        "lib/Dialect/Linalg/Transforms/LowerToLLVMDialect.cpp",
         "lib/Dialect/Linalg/Transforms/LowerToLoops.cpp",
         "lib/Dialect/Linalg/Transforms/Promotion.cpp",
         "lib/Dialect/Linalg/Transforms/Tiling.cpp",
@@ -2157,12 +2196,13 @@ cc_library(
         "include/mlir/Dialect/Linalg/IR/LinalgTraits.h",
         "include/mlir/Dialect/Linalg/IR/LinalgTypes.h",
         "include/mlir/Dialect/Linalg/Passes.h",
-        "include/mlir/Dialect/Linalg/Transforms/LinalgTransformPatterns.h.inc",
+        "include/mlir/Dialect/Linalg/Transforms/LinalgTransforms.h",
         "include/mlir/Dialect/Linalg/Utils/Intrinsics.h",
         "include/mlir/Dialect/Linalg/Utils/Utils.h",
     ],
     includes = ["include"],
     deps = [
+        "LinalgTransformPatternsIncGen",
         ":AffineOps",
         ":AffineToStandardTransforms",
         ":Analysis",
@@ -2180,7 +2220,6 @@ cc_library(
         ":Support",
         ":TransformUtils",
         ":Transforms",
-        ":VectorConversions",
         "@llvm//:core",
         "@llvm//:support",
     ],
@@ -2294,7 +2333,7 @@ gentbl(
     tblgen = ":mlir-tblgen",
     td_file = "include/mlir/Dialect/VectorOps/VectorTransformPatterns.td",
     td_srcs = [
-        "include/mlir/IR/OpBase.td",
+        ":OpBaseTdFiles",
         ":StdOpsTdFiles",
         ":VectorOpsTdFiles",
     ],
