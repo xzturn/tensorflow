@@ -1,4 +1,4 @@
-/* Copyright 2018 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2019 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,16 +13,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-%include "tensorflow/python/platform/base.i"
+#ifndef TENSORFLOW_CORE_PROFILER_CONVERT_OP_STATS_TO_TF_STATS_H_
+#define TENSORFLOW_CORE_PROFILER_CONVERT_OP_STATS_TO_TF_STATS_H_
 
-%{
-#include "tensorflow/python/lib/core/py_exception_registry.h"
-%}
+#include "tensorflow/core/profiler/protobuf/op_stats.pb.h"
+#include "tensorflow/core/profiler/protobuf/tf_stats.pb.h"
 
-%ignoreall
+namespace tensorflow {
+namespace profiler {
 
-%unignore tensorflow::PyExceptionRegistry;
-%unignore tensorflow::PyExceptionRegistry::Init;
+TfStatsDatabase ConvertOpStatsToTfStats(const OpStats& op_stats);
 
-%include "tensorflow/python/lib/core/py_exception_registry.h"
-%unignoreall
+}  // namespace profiler
+}  // namespace tensorflow
+
+#endif  // TENSORFLOW_CORE_PROFILER_CONVERT_OP_STATS_TO_TF_STATS_H_

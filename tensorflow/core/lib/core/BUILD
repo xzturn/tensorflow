@@ -1,4 +1,4 @@
-load("//tensorflow/core/platform:default/build_config.bzl", "tf_proto_library")
+load("//tensorflow/core/platform:build_config.bzl", "tf_proto_library")
 
 package(
     default_visibility = [
@@ -88,15 +88,14 @@ cc_library(
     name = "raw_coding",
     hdrs = ["raw_coding.h"],
     deps = [
-        "//tensorflow/core/platform:byte_order",
-        "//tensorflow/core/platform:types",
+        "//tensorflow/core/platform:raw_coding",
     ],
 )
 
 cc_library(
     name = "refcount",
     hdrs = ["refcount.h"],
-    deps = ["//tensorflow/core/platform:logging"],
+    deps = ["//tensorflow/core/platform:refcount"],
 )
 
 cc_library(

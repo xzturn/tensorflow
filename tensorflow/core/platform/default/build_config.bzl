@@ -2,7 +2,7 @@
 
 load("@com_google_protobuf//:protobuf.bzl", "proto_gen")
 load("//tensorflow:tensorflow.bzl", "clean_dep", "if_not_windows")
-load("//tensorflow/core/platform:default/build_config_root.bzl", "if_static")
+load("//tensorflow/core/platform:build_config_root.bzl", "if_static")
 load("@local_config_cuda//cuda:build_defs.bzl", "if_cuda")
 load("@local_config_rocm//rocm:build_defs.bzl", "if_rocm")
 load(
@@ -591,6 +591,9 @@ def tf_protos_all():
         extra_deps = tf_protos_all_impl(),
         otherwise = [clean_dep("//tensorflow/core:protos_all_cc")],
     )
+
+def tf_protos_profiler_impl():
+    return [clean_dep("//tensorflow/core/profiler/protobuf:xplane_proto_cc_impl")]
 
 def tf_protos_grappler_impl():
     return [clean_dep("//tensorflow/core/grappler/costs:op_performance_data_cc_impl")]

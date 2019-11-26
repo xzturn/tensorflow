@@ -7,9 +7,9 @@
 #
 #   The libraries in this package are not allowed to have ANY dependencies
 #   to any TensorFlow code outside this package.
-load("//tensorflow/core/platform:default/build_config_root.bzl", "if_static")
+load("//tensorflow/core/platform:build_config_root.bzl", "if_static")
 load(
-    "//tensorflow/core/platform:default/build_config.bzl",
+    "//tensorflow/core/platform:build_config.bzl",
     "tf_additional_lib_hdrs",
     "tf_additional_lib_srcs",
     "tf_additional_monitoring_srcs",
@@ -371,6 +371,23 @@ cc_library(
         ":types",
         "//tensorflow/core/lib/core:errors",
     ] + if_static(["@com_google_protobuf//:protobuf"]),
+)
+
+cc_library(
+    name = "raw_coding",
+    hdrs = ["raw_coding.h"],
+    deps = [
+        ":byte_order",
+        ":types",
+    ],
+)
+
+cc_library(
+    name = "refcount",
+    hdrs = ["refcount.h"],
+    deps = [
+        ":logging",
+    ],
 )
 
 cc_library(
@@ -834,7 +851,10 @@ exports_files(
 
 bzl_library(
     name = "build_config_root_bzl",
-    srcs = ["default/build_config_root.bzl"],
+    srcs = [
+        "build_config_root.bzl",
+        "default/build_config_root.bzl",
+    ],
 )
 
 bzl_library(

@@ -1,4 +1,3 @@
-# Description:
 # Python support for TensorFlow.
 #
 # Public targets:
@@ -26,8 +25,8 @@ load("//tensorflow:tensorflow.bzl", "pybind_extension")
 load("//tensorflow:tensorflow.bzl", "tf_py_wrap_cc")
 load("//tensorflow:tensorflow.bzl", "cuda_py_test")
 load("//tensorflow:tensorflow.bzl", "cuda_py_tests")
-load("//tensorflow/core/platform:default/build_config.bzl", "pyx_library", "tf_additional_all_protos", "tf_additional_cupti_test_flags", "tf_additional_lib_deps", "tf_proto_library", "tf_proto_library_py", "tf_protos_grappler")  # @unused
-load("//tensorflow/core/platform:default/build_config_root.bzl", "if_static", "tf_additional_plugin_deps")
+load("//tensorflow/core/platform:build_config.bzl", "pyx_library", "tf_additional_all_protos", "tf_additional_cupti_test_flags", "tf_additional_lib_deps", "tf_proto_library", "tf_proto_library_py", "tf_protos_grappler")  # @unused
+load("//tensorflow/core/platform:build_config_root.bzl", "if_static", "tf_additional_plugin_deps")
 load("//tensorflow/python:build_defs.bzl", "tf_gen_op_wrapper_private_py")
 load(
     "//third_party/ngraph:build_defs.bzl",
@@ -42,6 +41,26 @@ package(
 exports_files(["LICENSE"])
 
 exports_files(["platform/base.i"])
+
+exports_files(
+    ["lib/core/strings.i"],
+    visibility = [
+        "//bazel_pip/tensorflow/lite/toco/python:__pkg__",
+        "//engedu/ml/tf_from_scratch:__pkg__",
+        "//tensorflow:internal",
+        "//tensorflow/lite/toco/python:__pkg__",
+        "//tensorflow_model_optimization:__subpackages__",
+        "//tensorflow_models:__subpackages__",
+        "//third_party/cloud_tpu/convergence_tools:__subpackages__",
+        "//third_party/py/cleverhans:__subpackages__",
+        "//third_party/py/neural_structured_learning:__subpackages__",
+        "//third_party/py/reverb:__subpackages__",
+        "//third_party/py/tensorflow_examples:__subpackages__",
+        "//third_party/py/tf_slim:__subpackages__",
+    ],
+)
+
+# Description:
 
 py_library(
     name = "python",

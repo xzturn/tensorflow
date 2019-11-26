@@ -18,13 +18,8 @@ limitations under the License.
 #ifndef HLO_OPS
 #define HLO_OPS
 
-#ifndef OP_BASE
 include "mlir/IR/OpBase.td"
-#endif // OP_BASE
-
-#ifndef HLO_OPS_BASE
 include "tensorflow/compiler/mlir/xla/ir/hlo_ops_base.td"
-#endif
 
 def HLO_Dialect : Dialect {
   let name = "xla_hlo";
@@ -164,6 +159,13 @@ def HLO_Expm1Op: HLO_UnaryElementwiseOp<"exponential_minus_one",
 
 def HLO_FloorOp: HLO_UnaryElementwiseOp<"floor",
     [NoSideEffect, SameOperandsAndResultType], HLO_FpTensor>, BASE_HLO_FloorOp;
+
+def HLO_IsFiniteOp: HLO_UnaryElementwiseOp<"is_finite",
+    [NoSideEffect, SameOperandsAndResultShape], HLO_Tensor>,
+    BASE_HLO_IsFiniteOp {
+  let arguments = (ins HLO_FpTensor:$x);
+  let results = (outs HLO_PredTensor:$y);
+}
 
 def HLO_LogOp: HLO_UnaryElementwiseOp<"log",
     [NoSideEffect, SameOperandsAndResultType], HLO_FpOrComplexTensor>,
@@ -480,10 +482,6 @@ def HLO_SliceOp: HLO_Op<
                                  DenseIntElementsAttr limit_indices,
                                  DenseIntElementsAttr strides);
   }];
-
-  // TODO(b/129422361) Two of the required arguments comes from the start and
-  // limit indices which aren't handled by the codegen.
-  let hasCustomHLOConverter = 1;
 }
 
 def HLO_DynamicSliceOp: HLO_Op<"dynamic-slice",
@@ -521,6 +519,22 @@ def HLO_DynamicUpdateSliceOp: HLO_Op<"dynamic-update-slice",
 // XLA Other op definitions.
 //===----------------------------------------------------------------------===//
 
+def HLO_BatchNormGradOp : HLO_Op<"batch_norm_grad", [NoSideEffect]>,
+    BASE_HLO_BatchNormGradOp {
+
+  let arguments = (ins
+    HLO_Tensor:$operand,
+    HLO_Tensor:$scale,
+    HLO_Tensor:$mean,
+    HLO_Tensor:$variance,
+    HLO_Tensor:$grad_output,
+    F32Attr:$epsilon,
+    I64Attr:$feature_index
+  );
+
+  let results = (outs HLO_Tuple);
+}
+
 def HLO_BatchNormInferenceOp : HLO_Op<"batch_norm_inference", [NoSideEffect]>,
     BASE_HLO_BatchNormInferenceOp {
 
@@ -535,6 +549,20 @@ def HLO_BatchNormInferenceOp : HLO_Op<"batch_norm_inference", [NoSideEffect]>,
   );
 
   let results = (outs HLO_Tensor);
+}
+
+def HLO_BatchNormTrainingOp : HLO_Op<"batch_norm_training", [NoSideEffect]>,
+    BASE_HLO_BatchNormTrainingOp {
+
+  let arguments = (ins
+    HLO_Tensor:$operand,
+    HLO_Tensor:$scale,
+    HLO_Tensor:$offset,
+    F32Attr:$epsilon,
+    I64Attr:$feature_index
+  );
+
+  let results = (outs HLO_Tuple);
 }
 
 def HLO_BroadcastOp : HLO_Op<"broadcast",
@@ -707,6 +735,15 @@ def HLO_GatherOp: HLO_Op<"gather", [NoSideEffect]>, BASE_HLO_GatherOp {
   // TODO(b/129422361) Attributes are not supported by the codegen. The
   // optional argument (dimensions) needs to be added as an attribute.
   let hasCustomHLOConverter = 1;
+}
+
+def HLO_GetDimensionSizeOp: HLO_Op<"get_dimension_size", [NoSideEffect]>,
+      BASE_HLO_GetDimensionSizeOp {
+  let arguments = (ins
+    HLO_Tensor:$operand,
+    I32Attr:$dimension
+  );
+  let results = (outs HLO_IntTensor);
 }
 
 def HLO_ReshapeOp: HLO_Op<"reshape",
