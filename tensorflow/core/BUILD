@@ -102,7 +102,7 @@ load("//tensorflow:tensorflow.bzl", "tf_version_info_genrule")
 
 # For platform specific build config
 load(
-    "//tensorflow/core/platform:default/build_config.bzl",
+    "//tensorflow/core/platform:build_config.bzl",
     "tf_additional_all_protos",
     "tf_additional_core_deps",
     "tf_additional_lib_deps",
@@ -386,11 +386,6 @@ filegroup(
 )
 
 alias(
-    name = "grpc_services",
-    actual = "//tensorflow/core/platform:grpc_services",
-)
-
-alias(
     name = "human_readable_json",
     actual = "//tensorflow/core/platform:human_readable_json",
 )
@@ -433,6 +428,7 @@ filegroup(
         "//tensorflow/core/platform:profile_utils/i_cpu_utils_helper.h",
         "//tensorflow/core/platform:stacktrace.h",
         "//tensorflow/core/platform:stacktrace_handler.h",
+        "//tensorflow/core/platform:status.h",
         "//tensorflow/core/platform:stringpiece.h",
         "//tensorflow/core/platform:stringprintf.h",
         "//tensorflow/core/platform:strcat.h",
@@ -491,6 +487,7 @@ cc_library(
         "//tensorflow/core/platform:macros",
         "//tensorflow/core/platform:protobuf",
         "//tensorflow/core/platform:platform",
+        "//tensorflow/core/platform:status",
         "//tensorflow/core/platform:stringpiece",
         "//tensorflow/core/platform:tstring",
         "//tensorflow/core/platform:types",
@@ -529,9 +526,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         ":lib_internal",
-        "//tensorflow/core/platform:str_util",
-        "//tensorflow/core/platform:stringpiece",
-        "//tensorflow/core/platform:stringprintf",
         "@com_google_absl//absl/container:inlined_vector",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/types:optional",
@@ -2160,7 +2154,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "//third_party/eigen3",
         "@com_google_absl//absl/base:core_headers",
-        "//tensorflow/core/platform:regexp",
         "//tensorflow/core/platform/default/build_config:platformlib",
     ] + if_static([":lib_internal_impl"]),
 )
@@ -2265,6 +2258,7 @@ cc_library(
         "//tensorflow/core/platform:dynamic_annotations",
         "//tensorflow/core/platform:env",
         "//tensorflow/core/platform:error",
+        "//tensorflow/core/platform:errors",
         "//tensorflow/core/platform:file_statistics",
         "//tensorflow/core/platform:fingerprint",
         "//tensorflow/core/platform:load_library",
@@ -2281,9 +2275,11 @@ cc_library(
         "//tensorflow/core/platform:regexp",
         "//tensorflow/core/platform:scanner",
         "//tensorflow/core/platform:setround",
-        "//tensorflow/core/platform:strong_hash",
+        "//tensorflow/core/platform:status",
         "//tensorflow/core/platform:strcat",
+        "//tensorflow/core/platform:stringpiece",
         "//tensorflow/core/platform:stringprintf",
+        "//tensorflow/core/platform:strong_hash",
         "//tensorflow/core/platform:str_util",
         "//tensorflow/core/platform:subprocess",
         "//tensorflow/core/platform:tensor_coding",
@@ -2677,6 +2673,7 @@ tf_cuda_library(
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/memory",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "//third_party/eigen3",

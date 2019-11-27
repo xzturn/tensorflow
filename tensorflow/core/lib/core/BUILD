@@ -67,12 +67,7 @@ cc_library(
     name = "errors",
     hdrs = ["errors.h"],
     deps = [
-        ":status",
-        "//tensorflow/core/platform:logging",
-        "//tensorflow/core/platform:macros",
-        "//tensorflow/core/platform:str_util",
-        "//tensorflow/core/platform:strcat",
-        "@com_google_absl//absl/strings",
+        "//tensorflow/core/platform:errors",
     ],
 )
 
@@ -100,21 +95,9 @@ cc_library(
 
 cc_library(
     name = "status",
-    srcs = ["status.cc"],
     hdrs = ["status.h"],
     deps = [
-        ":error_codes_proto_cc",
-        "//tensorflow/core:error_codes_proto_impl_cc",
-        "//tensorflow/core/platform:logging",
-        "//tensorflow/core/platform:macros",
-        "//tensorflow/core/platform:mutex",
-        "//tensorflow/core/platform:stacktrace",
-        "//tensorflow/core/platform:str_util",
-        "//tensorflow/core/platform:strcat",
-        "//tensorflow/core/platform:stringpiece",
-        "//tensorflow/core/platform:stringprintf",
-        "//tensorflow/core/platform:types",
-        "@com_google_absl//absl/base",
+        "//tensorflow/core/platform:status",
     ],
 )
 
@@ -190,7 +173,6 @@ filegroup(
         "arena.cc",
         "bitmap.cc",
         "coding.cc",
-        "status.cc",
     ],
     visibility = ["//tensorflow/core:__pkg__"],
 )
