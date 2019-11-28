@@ -173,9 +173,9 @@ cc_library(
     hdrs = ["error.h"],
     deps = [
         ":platform",
+        ":status",
+        ":strcat",
         ":types",
-        "//tensorflow/core/lib/core:status",
-        "//tensorflow/core/platform:strcat",
     ],
 )
 
@@ -473,7 +473,6 @@ cc_library(
         ":logging",
         ":macros",
         ":mutex",
-        ":stacktrace",
         ":str_util",
         ":strcat",
         ":stringpiece",
