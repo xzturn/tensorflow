@@ -39,11 +39,9 @@ TF_DEFAULT_PLATFORM_LIBRARIES = {
         ],
         "deps": [
             "@local_config_cuda//cuda:cuda_headers",
-            "//tensorflow/core:lib",
-            # TODO(bmzhao): When bazel gains cc_shared_library support, the targets below are
-            # the actual granular targets we should depend on, instead of tf/core:lib.
-            # "//tensorflow/core/platform:logging",
-            # "//tensorflow/core/platform:types",
+            "//tensorflow/core/platform:logging",
+            "//tensorflow/core/platform:path",
+            "//tensorflow/core/platform:types",
         ],
         "visibility": ["//visibility:private"],
         "tags": ["no_oss", "manual"],
@@ -80,7 +78,6 @@ TF_DEFAULT_PLATFORM_LIBRARIES = {
             "//tensorflow/core/lib/core:blocking_counter",
             "//tensorflow/core/lib/core:error_codes_proto_cc",
             "//tensorflow/core/lib/core:stringpiece",
-            "//tensorflow/core/lib/io:path",
             "//tensorflow/core/platform",
             "//tensorflow/core/platform:context",
             "//tensorflow/core/platform:cord",
@@ -93,6 +90,7 @@ TF_DEFAULT_PLATFORM_LIBRARIES = {
             "//tensorflow/core/platform:logging",
             "//tensorflow/core/platform:macros",
             "//tensorflow/core/platform:mutex",
+            "//tensorflow/core/platform:path",
             "//tensorflow/core/platform:platform_port",
             "//tensorflow/core/platform:protobuf",
             "//tensorflow/core/platform:setround",
@@ -236,12 +234,9 @@ TF_DEFAULT_PLATFORM_LIBRARIES = {
         ],
         "deps": [
             "@local_config_rocm//rocm:rocm_headers",
-            "//tensorflow/core:lib",
-            # TODO(bmzhao): When bazel gains cc_shared_library support, the targets below are
-            # the actual granular targets we should depend on, instead of tf/core:lib.
-            # "//tensorflow/core/lib/io:path",
-            # "//tensorflow/core/platform:logging",
-            # "//tensorflow/core/platform:types",
+            "//tensorflow/core/platform:path",
+            "//tensorflow/core/platform:logging",
+            "//tensorflow/core/platform:types",
         ],
         "visibility": ["//visibility:private"],
         "tags": ["no_oss", "manual"],
@@ -342,6 +337,7 @@ TF_DEFAULT_PLATFORM_LIBRARIES = {
         "deps": [
             "//tensorflow/core/lib/hash",
             "//tensorflow/core/platform",
+            "//tensorflow/core/platform:hash",
             "//tensorflow/core/platform:logging",
             "//tensorflow/core/platform:macros",
             "//tensorflow/core/platform:strcat",
@@ -405,7 +401,6 @@ TF_WINDOWS_PLATFORM_LIBRARIES = {
             "//tensorflow/core/lib/core:blocking_counter",
             "//tensorflow/core/lib/core:error_codes_proto_cc",
             "//tensorflow/core/lib/core:stringpiece",
-            "//tensorflow/core/lib/io:path",
             "//tensorflow/core/platform",
             "//tensorflow/core/platform:context",
             "//tensorflow/core/platform:cord",
@@ -418,6 +413,7 @@ TF_WINDOWS_PLATFORM_LIBRARIES = {
             "//tensorflow/core/platform:logging",
             "//tensorflow/core/platform:macros",
             "//tensorflow/core/platform:mutex",
+            "//tensorflow/core/platform:path",
             "//tensorflow/core/platform:platform_port",
             "//tensorflow/core/platform:protobuf",
             "//tensorflow/core/platform:setround",
