@@ -1187,6 +1187,7 @@ tf_py_test(
         "//third_party/py/numpy",
         "//tensorflow/python:client_testlib",
     ],
+    python_version = "PY3",
     shard_count = 6,
     tags = [
         "noasan",  # times out
@@ -1853,6 +1854,18 @@ tf_py_test(
     shard_count = 4,
     tags = [
         "no_windows",
+    ],
+)
+
+tf_py_test(
+    name = "model_serialization_test",
+    size = "medium",
+    srcs = ["saving/saved_model/model_serialization_test.py"],
+    additional_deps = [
+        ":keras",
+        "@absl_py//absl/testing:parameterized",
+        "//tensorflow/python/distribute:mirrored_strategy",
+        "//tensorflow/python:client_testlib",
     ],
 )
 
