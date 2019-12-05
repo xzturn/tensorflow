@@ -105,6 +105,7 @@ load(
     "//tensorflow/core/platform:build_config.bzl",
     "tf_additional_all_protos",
     "tf_additional_core_deps",
+    "tf_additional_env_hdrs",
     "tf_additional_lib_deps",
     "tf_additional_monitoring_hdrs",
     "tf_additional_test_deps",
@@ -398,7 +399,7 @@ filegroup(
         "//tensorflow/core/platform:file_statistics.h",
         "//tensorflow/core/platform:file_system.h",
         "//tensorflow/core/platform:path.h",
-    ],
+    ] + tf_additional_env_hdrs(),
     visibility = ["//visibility:private"],
 )
 
@@ -573,8 +574,8 @@ cc_library(
     name = "util_reporter",
     srcs = ["util/reporter.cc"],
     hdrs = ["util/reporter.h"],
-    # Not to be used outside this file.
-    visibility = ["//visibility:private"],
+    # This should only be used in tensorflow/core/platform:test_benchmark
+    visibility = ["//tensorflow/core/platform:__subpackages__"],
     deps = [
         ":test_log_proto_impl_cc",
         "//tensorflow/core/platform:env",
@@ -2695,6 +2696,8 @@ tf_cuda_library(
         "@com_google_absl//absl/time",
         "//third_party/eigen3",
         "//tensorflow/core/framework:attr_value_proto_text",
+        "//tensorflow/core/framework:bfloat16",
+        "//tensorflow/core/framework:numeric_types",
         "//tensorflow/core/kernels:bounds_check",
         "//tensorflow/core/platform/default/build_config:platformlib",
         "//tensorflow/core/profiler/lib:traceme",
