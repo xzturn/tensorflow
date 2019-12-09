@@ -455,6 +455,7 @@ cc_library(
     includes = ["include"],
     deps = [
         ":CallOpInterfacesIncGen",
+        ":CommonFolders",
         ":IR",
         ":StandardOpsIncGen",
         ":Support",
@@ -700,6 +701,7 @@ cc_library(
         ":NVVMDialect",
         ":Pass",
         ":Transforms",
+        "@llvm//:support",
     ],
     alwayslink = 1,
 )
@@ -1314,6 +1316,20 @@ cc_library(
         "@llvm//:support",
     ],
     alwayslink = 1,
+)
+
+cc_library(
+    name = "CommonFolders",
+    srcs = [
+    ],
+    hdrs = [
+        "include/mlir/Dialect/CommonFolders.h",
+    ],
+    includes = ["include"],
+    deps = [
+        ":IR",
+        "@llvm//:support",
+    ],
 )
 
 cc_library(
