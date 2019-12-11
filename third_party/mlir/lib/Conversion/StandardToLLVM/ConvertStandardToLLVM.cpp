@@ -610,12 +610,12 @@ struct NDVectorTypeInfo {
 } // namespace
 
 // For >1-D vector types, extracts the necessary information to iterate over all
-// 1-D subvectors in the underlying llrepresentation of the n-D vecotr
+// 1-D subvectors in the underlying llrepresentation of the n-D vector
 // Iterates on the llvm array type until we hit a non-array type (which is
 // asserted to be an llvm vector type).
 static NDVectorTypeInfo extractNDVectorTypeInfo(VectorType vectorType,
                                                 LLVMTypeConverter &converter) {
-  assert(vectorType.getRank() > 1 && "extpected >1D vector type");
+  assert(vectorType.getRank() > 1 && "expected >1D vector type");
   NDVectorTypeInfo info;
   info.llvmArrayTy =
       converter.convertType(vectorType).dyn_cast<LLVM::LLVMType>();
@@ -1110,9 +1110,8 @@ struct CallOpInterfaceLowering : public LLVMLegalizationPattern<CallOpType> {
         return this->matchFailure();
     }
 
-    SmallVector<Value *, 4> opOperands(op->getOperands());
     auto promoted = this->lowering.promoteMemRefDescriptors(
-        op->getLoc(), opOperands, operands, rewriter);
+        op->getLoc(), /*opOperands=*/op->getOperands(), operands, rewriter);
     auto newOp = rewriter.create<LLVM::CallOp>(op->getLoc(), packedResult,
                                                promoted, op->getAttrs());
 
@@ -1240,7 +1239,7 @@ struct MemRefCastOpLowering : public LLVMLegalizationPattern<MemRefCastOp> {
     } else if (srcType.isa<MemRefType>() && dstType.isa<UnrankedMemRefType>()) {
       // Casting ranked to unranked memref type
       // Set the rank in the destination from the memref type
-      // Allocate space on the stack and copy the src memref decsriptor
+      // Allocate space on the stack and copy the src memref descriptor
       // Set the ptr in the destination to the stack space
       auto srcMemRefType = srcType.cast<MemRefType>();
       int64_t rank = srcMemRefType.getRank();
@@ -2078,9 +2077,10 @@ Value *LLVMTypeConverter::promoteOneMemRefDescriptor(Location loc,
   return allocated;
 }
 
-SmallVector<Value *, 4> LLVMTypeConverter::promoteMemRefDescriptors(
-    Location loc, ArrayRef<Value *> opOperands, ArrayRef<Value *> operands,
-    OpBuilder &builder) {
+SmallVector<Value *, 4>
+LLVMTypeConverter::promoteMemRefDescriptors(Location loc, ValueRange opOperands,
+                                            ValueRange operands,
+                                            OpBuilder &builder) {
   SmallVector<Value *, 4> promotedOperands;
   promotedOperands.reserve(operands.size());
   for (auto it : llvm::zip(opOperands, operands)) {

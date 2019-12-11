@@ -22,6 +22,7 @@
 #include "mlir/Dialect/SPIRV/SPIRVOps.h"
 
 #include "mlir/Analysis/CallInterfaces.h"
+#include "mlir/Dialect/CommonFolders.h"
 #include "mlir/Dialect/SPIRV/SPIRVDialect.h"
 #include "mlir/Dialect/SPIRV/SPIRVTypes.h"
 #include "mlir/IR/Builders.h"
@@ -73,6 +74,21 @@ static LogicalResult extractValueFromConstOp(Operation *op,
   }
   indexValue = integerValueAttr.getInt();
   return success();
+}
+
+template <typename Ty>
+static ArrayAttr
+getStrArrayAttrForEnumList(Builder &builder, ArrayRef<Ty> enumValues,
+                           llvm::function_ref<StringRef(Ty)> stringifyFn) {
+  if (enumValues.empty()) {
+    return nullptr;
+  }
+  SmallVector<StringRef, 1> enumValStrs;
+  enumValStrs.reserve(enumValues.size());
+  for (auto val : enumValues) {
+    enumValStrs.emplace_back(stringifyFn(val));
+  }
+  return builder.getStrArrayAttr(enumValStrs);
 }
 
 template <typename EnumClass>
@@ -380,29 +396,69 @@ static unsigned getBitWidth(Type type) {
 /// Walks the given type hierarchy with the given indices, potentially down
 /// to component granularity, to select an element type. Returns null type and
 /// emits errors with the given loc on failure.
-static Type getElementType(Type type, ArrayAttr indices, Location loc) {
-  if (!indices.size()) {
-    emitError(loc, "expected at least one index");
+static Type
+getElementType(Type type, ArrayRef<int32_t> indices,
+               llvm::function_ref<InFlightDiagnostic(StringRef)> emitErrorFn) {
+  if (indices.empty()) {
+    emitErrorFn("expected at least one index for spv.CompositeExtract");
     return nullptr;
   }
 
-  int32_t index;
-  for (auto indexAttr : indices) {
-    index = indexAttr.dyn_cast<IntegerAttr>().getInt();
+  for (auto index : indices) {
     if (auto cType = type.dyn_cast<spirv::CompositeType>()) {
       if (index < 0 || static_cast<uint64_t>(index) >= cType.getNumElements()) {
-        emitError(loc, "index ") << index << " out of bounds for " << type;
+        emitErrorFn("index ") << index << " out of bounds for " << type;
         return nullptr;
       }
       type = cType.getElementType(index);
     } else {
-      emitError(loc, "cannot extract from non-composite type ")
+      emitErrorFn("cannot extract from non-composite type ")
           << type << " with index " << index;
       return nullptr;
     }
   }
-
   return type;
+}
+
+static Type
+getElementType(Type type, Attribute indices,
+               llvm::function_ref<InFlightDiagnostic(StringRef)> emitErrorFn) {
+  auto indicesArrayAttr = indices.dyn_cast<ArrayAttr>();
+  if (!indicesArrayAttr) {
+    emitErrorFn("expected a 32-bit integer array attribute for 'indices'");
+    return nullptr;
+  }
+  if (!indicesArrayAttr.size()) {
+    emitErrorFn("expected at least one index for spv.CompositeExtract");
+    return nullptr;
+  }
+
+  SmallVector<int32_t, 2> indexVals;
+  for (auto indexAttr : indicesArrayAttr) {
+    auto indexIntAttr = indexAttr.dyn_cast<IntegerAttr>();
+    if (!indexIntAttr) {
+      emitErrorFn("expected an 32-bit integer for index, but found '")
+          << indexAttr << "'";
+      return nullptr;
+    }
+    indexVals.push_back(indexIntAttr.getInt());
+  }
+  return getElementType(type, indexVals, emitErrorFn);
+}
+
+static Type getElementType(Type type, Attribute indices, Location loc) {
+  auto errorFn = [&](StringRef err) -> InFlightDiagnostic {
+    return ::mlir::emitError(loc, err);
+  };
+  return getElementType(type, indices, errorFn);
+}
+
+static Type getElementType(Type type, Attribute indices, OpAsmParser &parser,
+                           llvm::SMLoc loc) {
+  auto errorFn = [&](StringRef err) -> InFlightDiagnostic {
+    return parser.emitError(loc, err);
+  };
+  return getElementType(type, indices, errorFn);
 }
 
 /// Returns true if the given `block` only contains one `spv._merge` op.
@@ -1054,8 +1110,87 @@ static LogicalResult verify(spirv::BranchConditionalOp branchOp) {
 }
 
 //===----------------------------------------------------------------------===//
+// spv.CompositeConstruct
+//===----------------------------------------------------------------------===//
+
+static ParseResult parseCompositeConstructOp(OpAsmParser &parser,
+                                             OperationState &state) {
+  SmallVector<OpAsmParser::OperandType, 4> operands;
+  Type type;
+  auto loc = parser.getCurrentLocation();
+
+  if (parser.parseOperandList(operands) || parser.parseColonType(type)) {
+    return failure();
+  }
+  auto cType = type.dyn_cast<spirv::CompositeType>();
+  if (!cType) {
+    return parser.emitError(
+               loc, "result type must be a composite type, but provided ")
+           << type;
+  }
+
+  if (operands.size() != cType.getNumElements()) {
+    return parser.emitError(loc, "has incorrect number of operands: expected ")
+           << cType.getNumElements() << ", but provided " << operands.size();
+  }
+  // TODO: Add support for constructing a vector type from the vector operands.
+  // According to the spec: "for constructing a vector, the operands may
+  // also be vectors with the same component type as the Result Type component
+  // type".
+  SmallVector<Type, 4> elementTypes;
+  elementTypes.reserve(cType.getNumElements());
+  for (auto index : llvm::seq<uint32_t>(0, cType.getNumElements())) {
+    elementTypes.push_back(cType.getElementType(index));
+  }
+  state.addTypes(type);
+  return parser.resolveOperands(operands, elementTypes, loc, state.operands);
+}
+
+static void print(spirv::CompositeConstructOp compositeConstructOp,
+                  OpAsmPrinter &printer) {
+  printer << spirv::CompositeConstructOp::getOperationName() << " ";
+  printer.printOperands(compositeConstructOp.constituents());
+  printer << " : " << compositeConstructOp.getResult()->getType();
+}
+
+static LogicalResult verify(spirv::CompositeConstructOp compositeConstructOp) {
+  auto cType = compositeConstructOp.getType().cast<spirv::CompositeType>();
+
+  SmallVector<Value *, 4> constituents(compositeConstructOp.constituents());
+  if (constituents.size() != cType.getNumElements()) {
+    return compositeConstructOp.emitError(
+               "has incorrect number of operands: expected ")
+           << cType.getNumElements() << ", but provided "
+           << constituents.size();
+  }
+
+  for (auto index : llvm::seq<uint32_t>(0, constituents.size())) {
+    if (constituents[index]->getType() != cType.getElementType(index)) {
+      return compositeConstructOp.emitError(
+                 "operand type mismatch: expected operand type ")
+             << cType.getElementType(index) << ", but provided "
+             << constituents[index]->getType();
+    }
+  }
+
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // spv.CompositeExtractOp
 //===----------------------------------------------------------------------===//
+
+void spirv::CompositeExtractOp::build(Builder *builder, OperationState &state,
+                                      Value *composite,
+                                      ArrayRef<int32_t> indices) {
+  auto indexAttr = builder->getI32ArrayAttr(indices);
+  auto elementType =
+      getElementType(composite->getType(), indexAttr, state.location);
+  if (!elementType) {
+    return;
+  }
+  build(builder, state, elementType, composite, indexAttr);
+}
 
 static ParseResult parseCompositeExtractOp(OpAsmParser &parser,
                                            OperationState &state) {
@@ -1063,7 +1198,6 @@ static ParseResult parseCompositeExtractOp(OpAsmParser &parser,
   Attribute indicesAttr;
   Type compositeType;
   llvm::SMLoc attrLocation;
-  int32_t index;
 
   if (parser.parseOperand(compositeInfo) ||
       parser.getCurrentLocation(&attrLocation) ||
@@ -1073,42 +1207,11 @@ static ParseResult parseCompositeExtractOp(OpAsmParser &parser,
     return failure();
   }
 
-  auto indicesArrayAttr = indicesAttr.dyn_cast<ArrayAttr>();
-  if (!indicesArrayAttr) {
-    return parser.emitError(
-        attrLocation,
-        "expected an 32-bit integer array attribute for 'indices'");
+  Type resultType =
+      getElementType(compositeType, indicesAttr, parser, attrLocation);
+  if (!resultType) {
+    return failure();
   }
-
-  if (!indicesArrayAttr.size()) {
-    return parser.emitError(
-        attrLocation, "expected at least one index for spv.CompositeExtract");
-  }
-
-  Type resultType = compositeType;
-  for (auto indexAttr : indicesArrayAttr) {
-    if (auto indexIntAttr = indexAttr.dyn_cast<IntegerAttr>()) {
-      index = indexIntAttr.getInt();
-    } else {
-      return parser.emitError(
-                 attrLocation,
-                 "expected an 32-bit integer for index, but found '")
-             << indexAttr << "'";
-    }
-
-    if (auto cType = resultType.dyn_cast<spirv::CompositeType>()) {
-      if (index < 0 || static_cast<uint64_t>(index) >= cType.getNumElements()) {
-        return parser.emitError(attrLocation, "index ")
-               << index << " out of bounds for " << resultType;
-      }
-      resultType = cType.getElementType(index);
-    } else {
-      return parser.emitError(attrLocation,
-                              "cannot extract from non-composite type ")
-             << resultType << " with index " << index;
-    }
-  }
-
   state.addTypes(resultType);
   return success();
 }
@@ -1610,6 +1713,16 @@ void spirv::GlobalVariableOp::build(Builder *builder, OperationState &state,
       builder->getI32IntegerAttr(binding));
 }
 
+void spirv::GlobalVariableOp::build(Builder *builder, OperationState &state,
+                                    Type type, StringRef name,
+                                    spirv::BuiltIn builtin) {
+  build(builder, state, TypeAttr::get(type), builder->getStringAttr(name),
+        nullptr);
+  state.addAttribute(
+      spirv::SPIRVDialect::getAttributeName(spirv::Decoration::BuiltIn),
+      builder->getStringAttr(spirv::stringifyBuiltIn(builtin)));
+}
+
 static ParseResult parseGlobalVariableOp(OpAsmParser &parser,
                                          OperationState &state) {
   // Parse variable name.
@@ -1738,11 +1851,17 @@ static LogicalResult verify(spirv::GroupNonUniformBallotOp ballotOp) {
 
 OpFoldResult spirv::IAddOp::fold(ArrayRef<Attribute> operands) {
   assert(operands.size() == 2 && "spv.IAdd expects two operands");
-  // lhs + 0 = lhs
+  // x + 0 = x
   if (matchPattern(operand2(), m_Zero()))
     return operand1();
 
-  return nullptr;
+  // According to the SPIR-V spec:
+  //
+  // The resulting value will equal the low-order N bits of the correct result
+  // R, where N is the component width and R is computed with enough precision
+  // to avoid overflow and underflow.
+  return constFoldBinaryOp<IntegerAttr>(operands,
+                                        [](APInt a, APInt b) { return a + b; });
 }
 
 //===----------------------------------------------------------------------===//
@@ -1751,14 +1870,38 @@ OpFoldResult spirv::IAddOp::fold(ArrayRef<Attribute> operands) {
 
 OpFoldResult spirv::IMulOp::fold(ArrayRef<Attribute> operands) {
   assert(operands.size() == 2 && "spv.IMul expects two operands");
-  // lhs * 0 == 0
+  // x * 0 == 0
   if (matchPattern(operand2(), m_Zero()))
     return operand2();
-  // lhs * 1 = lhs
+  // x * 1 = x
   if (matchPattern(operand2(), m_One()))
     return operand1();
 
-  return nullptr;
+  // According to the SPIR-V spec:
+  //
+  // The resulting value will equal the low-order N bits of the correct result
+  // R, where N is the component width and R is computed with enough precision
+  // to avoid overflow and underflow.
+  return constFoldBinaryOp<IntegerAttr>(operands,
+                                        [](APInt a, APInt b) { return a * b; });
+}
+
+//===----------------------------------------------------------------------===//
+// spv.ISub
+//===----------------------------------------------------------------------===//
+
+OpFoldResult spirv::ISubOp::fold(ArrayRef<Attribute> operands) {
+  // x - x = 0
+  if (operand1() == operand2())
+    return Builder(getContext()).getIntegerAttr(getType(), 0);
+
+  // According to the SPIR-V spec:
+  //
+  // The resulting value will equal the low-order N bits of the correct result
+  // R, where N is the component width and R is computed with enough precision
+  // to avoid overflow and underflow.
+  return constFoldBinaryOp<IntegerAttr>(operands,
+                                        [](APInt a, APInt b) { return a - b; });
 }
 
 //===----------------------------------------------------------------------===//
@@ -2039,20 +2182,38 @@ void spirv::ModuleOp::build(Builder *builder, OperationState &state) {
   ensureTerminator(*state.addRegion(), *builder, state.location);
 }
 
+// TODO(ravishankarm): This is only here for resolving some dependency outside
+// of mlir. Remove once it is done.
 void spirv::ModuleOp::build(Builder *builder, OperationState &state,
                             IntegerAttr addressing_model,
-                            IntegerAttr memory_model, ArrayAttr capabilities,
-                            ArrayAttr extensions,
-                            ArrayAttr extended_instruction_sets) {
+                            IntegerAttr memory_model) {
   state.addAttribute("addressing_model", addressing_model);
   state.addAttribute("memory_model", memory_model);
-  if (capabilities)
-    state.addAttribute("capabilities", capabilities);
-  if (extensions)
-    state.addAttribute("extensions", extensions);
+  build(builder, state);
+}
+
+void spirv::ModuleOp::build(Builder *builder, OperationState &state,
+                            spirv::AddressingModel addressing_model,
+                            spirv::MemoryModel memory_model,
+                            ArrayRef<spirv::Capability> capabilities,
+                            ArrayRef<spirv::Extension> extensions,
+                            ArrayAttr extended_instruction_sets) {
+  state.addAttribute(
+      "addressing_model",
+      builder->getI32IntegerAttr(static_cast<int32_t>(addressing_model)));
+  state.addAttribute("memory_model", builder->getI32IntegerAttr(
+                                         static_cast<int32_t>(memory_model)));
+  if (!capabilities.empty())
+    state.addAttribute("capabilities",
+                       getStrArrayAttrForEnumList<spirv::Capability>(
+                           *builder, capabilities, spirv::stringifyCapability));
+  if (!extensions.empty())
+    state.addAttribute("extensions",
+                       getStrArrayAttrForEnumList<spirv::Extension>(
+                           *builder, extensions, spirv::stringifyExtension));
   if (extended_instruction_sets)
     state.addAttribute("extended_instruction_sets", extended_instruction_sets);
-  ensureTerminator(*state.addRegion(), *builder, state.location);
+  build(builder, state);
 }
 
 static ParseResult parseModuleOp(OpAsmParser &parser, OperationState &state) {

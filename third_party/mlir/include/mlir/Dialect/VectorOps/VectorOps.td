@@ -127,6 +127,9 @@ def Vector_ContractionOp :
       %5 = vector.contract #contraction_trait %0, %1, %2, %lhs_mask, %rhs_mask
          : vector<7x8x16x15xf32>, vector<8x16x7x5xf32> into vector<8x15x8x5xf32>
   }];
+  let builders = [OpBuilder<
+    "Builder *builder, OperationState &result, Value *lhs, Value *rhs, "
+    "Value *acc, ArrayAttr indexingMaps, ArrayAttr iteratorTypes">];
   let extraClassDeclaration = [{
     VectorType getLhsType() {
       return lhs()->getType().cast<VectorType>();
@@ -148,14 +151,9 @@ def Vector_ContractionOp :
     VectorType getResultType() {
       return getResult()->getType().cast<VectorType>();
     }
-    SmallVector<StringRef, 2> getTraitAttrNames();
+    ArrayRef<StringRef> getTraitAttrNames();
     SmallVector<AffineMap, 4> getIndexingMaps();
-    static StringRef getReductionIteratorTypeName() {
-      return "reduction";
-    }
-    static StringRef getParallelIteratorTypeName() {
-      return "parallel";
-    }
+    static unsigned getAccOperandIndex() { return 2; }
 
     // Returns the bounds of each dimension in the iteration space spanned
     // by the iterator types of this operation.
@@ -197,7 +195,7 @@ def Vector_BroadcastOp :
                <duplication>         <potential stretch>
        ```
     The source operand is duplicated over all the missing leading dimensions
-    and streched over the trailing dimensions where the source has a non-equal
+    and stretched over the trailing dimensions where the source has a non-equal
     dimension of 1. These rules imply that any scalar broadcast (k=0) to any
     shaped vector with the same element type is always legal.
 
@@ -210,6 +208,59 @@ def Vector_BroadcastOp :
   }];
   let extraClassDeclaration = [{
     Type getSourceType() { return source()->getType(); }
+    VectorType getVectorType() {
+      return vector()->getType().cast<VectorType>();
+    }
+  }];
+}
+
+def Vector_ShuffleOp :
+  Vector_Op<"shuffle", [NoSideEffect,
+     PredOpTrait<"first operand v1 and result have same element type",
+                 TCresVTEtIsSameAsOpBase<0, 0>>,
+     PredOpTrait<"second operand v2 and result have same element type",
+                 TCresVTEtIsSameAsOpBase<0, 1>>]>,
+     Arguments<(ins AnyVector:$v1, AnyVector:$v2, I32ArrayAttr:$mask)>,
+     Results<(outs AnyVector:$vector)> {
+  let summary = "shuffle operation";
+  let description = [{
+    The shuffle operation constructs a permutation (or duplication) of elements
+    from two input vectors, returning a vector with the same element type as
+    the input and a length that is the same as the shuffle mask. The two input
+    vectors must have the same element type, rank, and trailing dimension sizes
+    and shuffles their values in the leading dimension (which may differ in size)
+    according to the given mask. The legality rules are:
+    * the two operands must have the same element type as the result
+    * the two operands and the result must have the same rank and trailing
+      dimension sizes, viz. given two k-D operands
+              v1 : <s_1 x s_2 x .. x s_k x type> and
+              v2 : <t_1 x t_2 x .. x t_k x type>
+      we have s_i = t_i for all 1 < i <= k
+    * the mask length equals the leading dimension size of the result
+    * numbering the input vector indices left to right accross the operands, all
+      mask values must be within range, viz. given two k-D operands v1 and v2
+      above, all mask values are in the range [0,s_1+t_1)
+
+    Examples:
+    ```
+    %0 = vector.shuffle %a, %b[0:i32, 3:i32]
+               : vector<2xf32>, vector<2xf32>       ; yields vector<2xf32>
+    %1 = vector.shuffle %c, %b[0:i32, 1:i32, 2:i32]
+               : vector<2x16xf32>, vector<1x16xf32> ; yields vector<3x16xf32>
+    %2 = vector.shuffle %a, %b[3:i32, 2:i32, 1:i32 : 0:i32]
+               : vector<2xf32>, vector<2xf32>       ; yields vector<4xf32>
+
+    ```
+  }];
+  let builders = [OpBuilder<"Builder *builder, OperationState &result, Value *v1, Value *v2, ArrayRef<int32_t>">];
+  let extraClassDeclaration = [{
+    static StringRef getMaskAttrName() { return "mask"; }
+    VectorType getV1VectorType() {
+      return v1()->getType().cast<VectorType>();
+    }
+    VectorType getV2VectorType() {
+      return v2()->getType().cast<VectorType>();
+    }
     VectorType getVectorType() {
       return vector()->getType().cast<VectorType>();
     }
@@ -400,6 +451,7 @@ def Vector_StridedSliceOp :
     static StringRef getSizesAttrName() { return "sizes"; }
     static StringRef getStridesAttrName() { return "strides"; }
     VectorType getVectorType(){ return vector()->getType().cast<VectorType>(); }
+    void getOffsets(SmallVectorImpl<int64_t> &results);
   }];
   let hasCanonicalizer = 1;
 }
@@ -433,7 +485,7 @@ def Vector_TransferReadOp :
     More precisely, let's dive deeper into the permutation_map for the following
     MLIR:
 
-    ```mlir {.mlir}
+    ```mlir
     vector.transfer_read %A[%expr1, %expr2, %expr3, %expr4]
       { permutation_map : (d0,d1,d2,d3) -> (d2,0,d0) } :
       memref<?x?x?x?xf32>, vector<3x4x5xf32>
@@ -493,7 +545,7 @@ def Vector_TransferReadOp :
     implemented using a warp-shuffle if loop `j` were mapped to `threadIdx.x`.
 
     Syntax
-    ``` {.ebnf}
+    ```
     operation ::= ssa-id `=` `vector.transfer_read` ssa-use-list
       `{` attribute-entry `} :` memref-type `,` vector-type
     ```
@@ -564,14 +616,14 @@ def Vector_TransferWriteOp :
 
     Syntax:
 
-    ``` {.ebnf}
+    ```
     operation ::= `vector.transfer_write` ssa-use-list `{` attribute-entry `} :
       ` vector-type ', ' memref-type '
     ```
 
     Examples:
 
-    ```mlir {.mlir}
+    ```mlir
     // write vector<16x32x64xf32> into the slice
     //   `%A[%i0, %i1:%i1+32, %i2:%i2+64, %i3:%i3+16]`:
     for %i0 = 0 to %0 {
@@ -610,7 +662,7 @@ def Vector_TypeCastOp :
 
     Syntax:
 
-    ``` {.ebnf}
+    ```
     operation ::= `vector.type_cast` ssa-use : memref-type to memref-type
     ```
 
@@ -649,7 +701,7 @@ def Vector_ConstantMaskOp :
     are set to '0' or '1', based on whether the element indices are contained
     within a hyper-rectangular region specified by the 'mask_dim_sizes'
     array attribute argument. Each element of the 'mask_dim_sizes' array,
-    specifices an exclusive upper bound [0, mask-dim-size-element-value)
+    specifies an exclusive upper bound [0, mask-dim-size-element-value)
     for a unique dimension in the vector result. The conjunction of the ranges
     define a hyper-rectangular region within which elements values are set to 1
     (otherwise element values are set to 0).

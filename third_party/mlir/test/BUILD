@@ -33,17 +33,17 @@ gentbl(
 )
 
 gentbl(
-    name = "TestLinalgTilePermuteTransformPatternsIncGen",
+    name = "TestVectorTransformPatternsIncGen",
     tbl_outs = [
         (
             "-gen-rewriters",
-            "lib/DeclarativeTransforms/TestLinalgTilePermutePatterns.h.inc",
+            "lib/DeclarativeTransforms/TestVectorTransformPatterns.h.inc",
         ),
     ],
     tblgen = "@local_config_mlir//:mlir-tblgen",
-    td_file = "lib/DeclarativeTransforms/TestLinalgTilePermutePatterns.td",
+    td_file = "lib/DeclarativeTransforms/TestVectorTransformPatterns.td",
     td_srcs = [
-        "@local_config_mlir//:LinalgTransformPatternsTdFiles",
+        "@local_config_mlir//:VectorTransformPatternsTdFiles",
     ],
 )
 
@@ -113,6 +113,7 @@ cc_library(
     name = "TestIR",
     srcs = [
         "lib/IR/TestFunc.cpp",
+        "lib/IR/TestMatchers.cpp",
         "lib/IR/TestSymbolUses.cpp",
     ],
     deps = [
@@ -120,6 +121,7 @@ cc_library(
         "@llvm//:support",
         "@local_config_mlir//:IR",
         "@local_config_mlir//:Pass",
+        "@local_config_mlir//:StandardOps",
         "@local_config_mlir//:Support",
     ],
     alwayslink = 1,
@@ -145,7 +147,6 @@ cc_library(
         "lib/Transforms/TestCallGraph.cpp",
         "lib/Transforms/TestConstantFold.cpp",
         "lib/Transforms/TestInlining.cpp",
-        "lib/Transforms/TestLinalgTilePermuteTransforms.cpp",
         "lib/Transforms/TestLinalgTransforms.cpp",
         "lib/Transforms/TestLoopFusion.cpp",
         "lib/Transforms/TestLoopMapping.cpp",
@@ -153,14 +154,14 @@ cc_library(
         "lib/Transforms/TestMemRefStrideCalculation.cpp",
         "lib/Transforms/TestOpaqueLoc.cpp",
         "lib/Transforms/TestVectorToLoopsConversion.cpp",
-        "lib/Transforms/TestVectorToVectorConversion.cpp",
+        "lib/Transforms/TestVectorTransforms.cpp",
         "lib/Transforms/TestVectorizationUtils.cpp",
     ],
     includes = ["lib/TestDialect"],
     deps = [
         ":TestDialect",
-        ":TestLinalgTilePermuteTransformPatternsIncGen",
         ":TestLinalgTransformPatternsIncGen",
+        ":TestVectorTransformPatternsIncGen",
         "@llvm//:support",
         "@local_config_mlir//:AffineOps",
         "@local_config_mlir//:Analysis",
