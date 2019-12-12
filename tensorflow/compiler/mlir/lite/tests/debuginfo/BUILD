@@ -8,6 +8,9 @@ glob_lit_tests(
         ":test_utilities",
     ],
     driver = "@local_config_mlir//:run_lit.sh",
+    tags_override = {
+        "saved_model_error.py": ["noasan"],
+    },
     test_file_exts = [
         "pbtxt",
         "py",
@@ -32,6 +35,7 @@ filegroup(
         "//tensorflow/compiler/mlir/lite:flatbuffer_to_string",
         "//tensorflow/compiler/mlir/lite:tf_tfl_translate",
         "@llvm//:FileCheck",
+        "@llvm//:not",
     ],
 )
 

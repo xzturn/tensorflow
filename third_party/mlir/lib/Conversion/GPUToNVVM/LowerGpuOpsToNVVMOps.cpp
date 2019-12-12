@@ -450,10 +450,8 @@ private:
   static constexpr int kWarpSize = 32;
 };
 
-namespace {
-
-struct FuncOpLowering : LLVMOpLowering {
-  explicit FuncOpLowering(LLVMTypeConverter &typeConverter)
+struct GPUFuncOpLowering : LLVMOpLowering {
+  explicit GPUFuncOpLowering(LLVMTypeConverter &typeConverter)
       : LLVMOpLowering(gpu::GPUFuncOp::getOperationName(),
                        typeConverter.getDialect()->getContext(),
                        typeConverter) {}
@@ -585,8 +583,6 @@ struct FuncOpLowering : LLVMOpLowering {
   }
 };
 
-} // end namespace
-
 /// Import the GPU Ops to NVVM Patterns.
 #include "GPUToNVVM.cpp.inc"
 
@@ -605,19 +601,7 @@ public:
     OwningRewritePatternList patterns;
     LLVMTypeConverter converter(m.getContext());
     populateStdToLLVMConversionPatterns(converter, patterns);
-    populateWithGenerated(&getContext(), &patterns);
-    patterns.insert<
-        GPUIndexIntrinsicOpLowering<gpu::ThreadIdOp, NVVM::ThreadIdXOp,
-                                    NVVM::ThreadIdYOp, NVVM::ThreadIdZOp>,
-        GPUIndexIntrinsicOpLowering<gpu::BlockDimOp, NVVM::BlockDimXOp,
-                                    NVVM::BlockDimYOp, NVVM::BlockDimZOp>,
-        GPUIndexIntrinsicOpLowering<gpu::BlockIdOp, NVVM::BlockIdXOp,
-                                    NVVM::BlockIdYOp, NVVM::BlockIdZOp>,
-        GPUIndexIntrinsicOpLowering<gpu::GridDimOp, NVVM::GridDimXOp,
-                                    NVVM::GridDimYOp, NVVM::GridDimZOp>,
-        GPUAllReduceOpLowering, FuncOpLowering>(converter);
-    patterns.insert<OpToFuncCallLowering<ExpOp>>(converter, "__nv_expf",
-                                                 "__nv_exp");
+    populateGpuToNVVMConversionPatterns(converter, patterns);
     ConversionTarget target(getContext());
     target.addIllegalDialect<gpu::GPUDialect>();
     target.addIllegalOp<LLVM::ExpOp>();
@@ -632,6 +616,23 @@ public:
 };
 
 } // anonymous namespace
+
+void mlir::populateGpuToNVVMConversionPatterns(
+    LLVMTypeConverter &converter, OwningRewritePatternList &patterns) {
+  populateWithGenerated(converter.getDialect()->getContext(), &patterns);
+  patterns
+      .insert<GPUIndexIntrinsicOpLowering<gpu::ThreadIdOp, NVVM::ThreadIdXOp,
+                                          NVVM::ThreadIdYOp, NVVM::ThreadIdZOp>,
+              GPUIndexIntrinsicOpLowering<gpu::BlockDimOp, NVVM::BlockDimXOp,
+                                          NVVM::BlockDimYOp, NVVM::BlockDimZOp>,
+              GPUIndexIntrinsicOpLowering<gpu::BlockIdOp, NVVM::BlockIdXOp,
+                                          NVVM::BlockIdYOp, NVVM::BlockIdZOp>,
+              GPUIndexIntrinsicOpLowering<gpu::GridDimOp, NVVM::GridDimXOp,
+                                          NVVM::GridDimYOp, NVVM::GridDimZOp>,
+              GPUAllReduceOpLowering, GPUFuncOpLowering>(converter);
+  patterns.insert<OpToFuncCallLowering<ExpOp>>(converter, "__nv_expf",
+                                               "__nv_exp");
+}
 
 std::unique_ptr<OpPassBase<ModuleOp>> mlir::createLowerGpuOpsToNVVMOpsPass() {
   return std::make_unique<LowerGpuOpsToNVVMOpsPass>();
