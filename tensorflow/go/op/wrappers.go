@@ -41347,7 +41347,7 @@ func ResourceApplyAdamUseNesterov(value bool) ResourceApplyAdamAttr {
 // Update '*var' according to the Adam algorithm.
 //
 // $$\text{lr}_t := \mathrm{learning_rate} * \sqrt{1 - \beta_2^t} / (1 - \beta_1^t)$$
-// $$m_t := \beta_1 * m_{t-1} + (1 - \beta_1) * g$$\
+// $$m_t := \beta_1 * m_{t-1} + (1 - \beta_1) * g$$
 // $$v_t := \beta_2 * v_{t-1} + (1 - \beta_2) * g * g$$
 // $$\text{variable} := \text{variable} - \text{lr}_t * m_t / (\sqrt{v_t} + \epsilon)$$
 //

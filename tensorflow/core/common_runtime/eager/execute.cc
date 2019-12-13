@@ -32,6 +32,7 @@ limitations under the License.
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/types/optional.h"
+#include "tensorflow/compiler/jit/defs.h"
 #include "tensorflow/core/common_runtime/device.h"
 #include "tensorflow/core/common_runtime/device_set.h"
 #include "tensorflow/core/common_runtime/eager/context.h"
@@ -73,11 +74,6 @@ limitations under the License.
 namespace tensorflow {
 
 namespace {
-
-// Copy of the definition in third_party/tensorflow/compiler/jit/defs.h
-// Copied here because we don't currently compile XLA on windows. So, can't
-// depend on it directly.
-const char* const kXlaCompileAttr = "_XlaCompile";
 
 // Using absl::StrJoin with lambda does not work in tf-lite builds.
 std::vector<string> DevicesToString(const std::vector<Device*> devices) {
@@ -537,7 +533,6 @@ Status EagerLocalExecute(EagerOperation* op, TensorHandle** retvals,
     DVLOG(2) << "Creating new kernel for " << op->Name() << " on device "
              << DeviceNameOrUnspecified(op->Device());
     bool run_function_with_flr = false;
-    bool compile_with_xla = false;
     if (op->is_function()) {
       bool compile_with_xla;
       TF_RETURN_IF_ERROR(ShouldCompileWithXLA(op, ctx, &compile_with_xla));
@@ -586,8 +581,7 @@ Status EagerLocalExecute(EagerOperation* op, TensorHandle** retvals,
       // that we don't support legitimate sending/receiving across function
       // boundary.
       DVLOG(2) << "Running " << ndef.op() << " using multi-device function. "
-               << "compile_with_xla=" << compile_with_xla
-               << ". Full node_def=" << ndef.DebugString();
+               << "Full node_def=" << ndef.DebugString();
       std::function<int64()> get_op_id = nullptr;
 #if !defined(IS_MOBILE_PLATFORM)
       if (ctx->LazyCopyFunctionRemoteInputs()) {
@@ -602,12 +596,10 @@ Status EagerLocalExecute(EagerOperation* op, TensorHandle** retvals,
           get_op_id));
     } else {
       DVLOG(2) << "Running " << ndef.op() << " using op kernel. "
-               << "compile_with_xla=" << compile_with_xla
                << ". Full node_def=" << ndef.DebugString();
-      kernel.reset(new KernelAndDeviceOp(ctx->GetRendezvous(), ctx->LogMemory(),
-                                         flr, runner,
-                                         ctx->GetCollectiveExecutorHandle(),
-                                         ctx->HostCPU(), compile_with_xla));
+      kernel.reset(new KernelAndDeviceOp(
+          ctx->GetRendezvous(), ctx->LogMemory(), flr, runner,
+          ctx->GetCollectiveExecutorHandle(), ctx->HostCPU()));
     }
 
     TF_RETURN_IF_ERROR(kernel->Init(ndef, graph_collector));
