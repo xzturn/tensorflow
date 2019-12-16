@@ -1992,7 +1992,7 @@ GraphDefImporter::GetArgsRetsAndTypesFromFunctionGraph(
     tensorflow::int64 resource_arg_unique_id;
     if (TryGetNodeAttr(arg_node.node->attrs(), "_resource_arg_unique_id",
                        &resource_arg_unique_id)) {
-      resource_arg_unique_ids->emplace_back(arg_node.index,
+      resource_arg_unique_ids->emplace_back(arg_node_and_idx.index(),
                                             resource_arg_unique_id);
     }
   }
