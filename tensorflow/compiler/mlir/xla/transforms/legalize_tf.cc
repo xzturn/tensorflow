@@ -478,7 +478,7 @@ static DenseIntElementsAttr TFSliceSizes2HLOSliceSizes(
 // `element_types`, create two block arguments, one for lhs and one for rhs, and
 // generates xla_hlo.compare op to compare them with the given `direction`.
 //
-// Note that this right now only does comparsion on the first pair of block
+// Note that this right now only does comparision on the first pair of block
 // arguments.
 static void BuildSortComparisonBody(llvm::ArrayRef<Type> element_types,
                                     StringRef direction, Region *body,
@@ -1195,20 +1195,9 @@ class ConvertStridedSliceOp : public OpRewritePattern<TF::StridedSliceOp> {
     auto result_ty = op.getType().dyn_cast<RankedTensorType>();
     if (!result_ty || !result_ty.hasStaticShape()) return matchFailure();
 
-    // TODO(hinsu): Support non-zero mask values. Currently only
-    // 'shrink_axis_mask' is supported.
-    for (StringRef mask :
-         {"begin_mask", "end_mask", "ellipsis_mask", "new_axis_mask"}) {
-      auto attr = op.getAttrOfType<IntegerAttr>(mask);
-      if (attr && attr.getValue() != 0) return matchFailure();
-    }
-
-    // TODO(hinsu): Support lowering for ops with dynamic begin and end values
-    // when it is possible to derive indices based on mask attributes.
-    DenseIntElementsAttr begin_indices, end_indices, strides;
-    if (!matchPattern(op.begin(), m_Constant(&begin_indices)) ||
-        !matchPattern(op.end(), m_Constant(&end_indices)) ||
-        !matchPattern(op.strides(), m_Constant(&strides)))
+    SmallVector<int64_t, 4> begin_indices, end_indices, strides;
+    if (!op.GetSlicedBoundRanges(input_shape, &begin_indices, &end_indices,
+                                 &strides))
       return matchFailure();
 
     SmallVector<int64_t, 4> hlo_begin_indices, hlo_end_indices, hlo_strides,
@@ -1218,18 +1207,15 @@ class ConvertStridedSliceOp : public OpRewritePattern<TF::StridedSliceOp> {
     hlo_end_indices.reserve(input_rank);
     hlo_strides.reserve(input_rank);
 
-    int64_t indices_elements = begin_indices.getNumElements();
+    int64_t indices_elements = begin_indices.size();
     if (input_rank < indices_elements) return matchFailure();
 
     // Convert from TensorFlow negative or out of range indices and strides
     // values to legal HLO Slice attributes.
     for (int i = 0, e = indices_elements; i != e; i++) {
-      int64_t begin = begin_indices.getValue<IntegerAttr>(i).getInt();
-      int64_t end = end_indices.getValue<IntegerAttr>(i).getInt();
-      int64_t stride = strides.getValue<IntegerAttr>(i).getInt();
-
-      if (begin < 0) begin = input_shape[i] + begin;
-      if (end < 0) end = input_shape[i] + end;
+      int64_t begin = begin_indices[i];
+      int64_t end = end_indices[i];
+      int64_t stride = strides[i];
 
       if (stride < 0) {
         // Negative stride means that the output values are computed starting
@@ -2262,7 +2248,7 @@ class ConvertTopKV2Op : public OpRewritePattern<TF::TopKV2Op> {
 // Converts tf.Unpack to a series of XLA HLO slice ops.
 //
 // Each slice takes one element along the dimension to unpack and takes the full
-// range for all other dimenions. Each slice is then reshaped to drop the
+// range for all other dimensions. Each slice is then reshaped to drop the
 // dimension to unpack (which is always of size 1).
 // TODO(antiagainst): consider changing this into a TF internal lowering pass.
 class ConvertUnpackOp : public OpRewritePattern<TF::UnpackOp> {
