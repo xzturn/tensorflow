@@ -21,6 +21,7 @@ load(
 visibility = [
     "//engedu/ml/tf_from_scratch:__pkg__",
     "//third_party/cloud_tpu/convergence_tools:__subpackages__",
+    "//third_party/mlperf:__subpackages__",
     "//tensorflow:internal",
     "//tensorflow/lite/toco/python:__pkg__",
     "//tensorflow_models:__subpackages__",
@@ -1740,6 +1741,12 @@ py_library(
 )
 
 py_library(
+    name = "gpu_util",
+    srcs = ["framework/gpu_util.py"],
+    deps = [],
+)
+
+py_library(
     name = "framework_test_lib",
     srcs = ["framework/test_util.py"],
     srcs_version = "PY2AND3",
@@ -1752,6 +1759,7 @@ py_library(
         ":client",
         ":errors",
         ":framework_for_generated_wrappers",
+        ":gpu_util",
         ":platform",
         ":platform_test",
         ":pywrap_tensorflow",
@@ -1835,6 +1843,17 @@ py_library(
         ":platform_test",
         ":util",
         ":while_v2",
+    ],
+)
+
+tf_py_test(
+    name = "framework_constant_op_test",
+    size = "small",
+    srcs = ["framework/constant_op_test.py"],
+    main = "framework/constant_op_test.py",
+    python_version = "PY3",
+    deps = [
+        ":constant_op",
     ],
 )
 

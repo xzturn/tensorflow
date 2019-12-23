@@ -447,16 +447,6 @@ namespace mlir {
 namespace xla_hlo {
 namespace {
 
-LogicalResult ExportXlaOp(AfterAllOp op, OpLoweringContext ctx) {
-  auto& value_map = *ctx.values;
-  std::vector<xla::XlaOp> tokens(op.operands().size());
-  for (auto index_and_value : llvm::enumerate(op.operands())) {
-    tokens[index_and_value.index()] = value_map[index_and_value.value()];
-  }
-  value_map[op] = xla::AfterAll(ctx.builder, tokens);
-  return mlir::success();
-}
-
 LogicalResult ExportXlaOp(AllReduceOp op, OpLoweringContext ctx) {
   auto& value_map = *ctx.values;
   xla::XlaComputation computation;
@@ -546,12 +536,6 @@ LogicalResult ExportXlaOp(ConvertOp op, OpLoweringContext ctx) {
       xla::TypeToPrimitiveType(getElementTypeOrSelf(op.getType())));
   return success();
 }
-
-LogicalResult ExportXlaOp(CopyOp op, OpLoweringContext ctx) {
-  return failure();
-}
-
-LogicalResult ExportXlaOp(FftOp op, OpLoweringContext ctx) { return failure(); }
 
 LogicalResult ExportXlaOp(GatherOp op, OpLoweringContext ctx) {
   auto& value_map = *ctx.values;
@@ -662,6 +646,13 @@ LogicalResult ExportXlaOp(ReverseOp op, OpLoweringContext ctx) {
   return success();
 }
 
+LogicalResult ExportXlaOp(RngNormalOp op, OpLoweringContext ctx) {
+  auto& value_map = *ctx.values;
+  value_map[op] = xla::RngNormal(value_map[op.mu()], value_map[op.sigma()],
+                                 xla::TypeToShape(op.getType()));
+  return success();
+}
+
 LogicalResult ExportXlaOp(RngUniformOp op, OpLoweringContext ctx) {
   auto& value_map = *ctx.values;
   value_map[op] = xla::RngUniform(value_map[op.a()], value_map[op.b()],
@@ -715,12 +706,6 @@ LogicalResult ExportXlaOp(SortOp op, OpLoweringContext ctx) {
   auto& value_map = *ctx.values;
   value_map[op] = xla::Sort(GetTuple(op.operands(), ctx), comparator,
                             op.dimension().getSExtValue(), op.is_stable());
-  return success();
-}
-
-LogicalResult ExportXlaOp(TupleOp op, OpLoweringContext ctx) {
-  auto& value_map = *ctx.values;
-  value_map[op] = xla::Tuple(ctx.builder, GetTuple(op.val(), ctx));
   return success();
 }
 
