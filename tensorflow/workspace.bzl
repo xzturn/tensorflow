@@ -192,11 +192,11 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
         name = "eigen_archive",
         build_file = clean_dep("//third_party:eigen.BUILD"),
         patch_file = clean_dep("//third_party/eigen3:gpu_packet_math.patch"),
-        sha256 = "22a69745812cb040b3e8e8d3cd002932999252727897ad3326b4b6e72a1f24e9",
-        strip_prefix = "eigen-7252163335f56f23fcc7381c1efdea47161005fa",
+        sha256 = "26ea0481c517ea11c7afd1d2655fdcbefcc90fd5b4ff8a5313b78edd49170f6d",
+        strip_prefix = "eigen-4217a9f09018b1eb3ce800919a69c7c3df47f9cb",
         urls = [
-            "https://storage.googleapis.com/mirror.tensorflow.org/gitlab.com/libeigen/eigen/-/archive/7252163335f56f23fcc7381c1efdea47161005fa/eigen-7252163335f56f23fcc7381c1efdea47161005fa.tar.gz",
-            "https://gitlab.com/libeigen/eigen/-/archive/7252163335f56f23fcc7381c1efdea47161005fa/eigen-7252163335f56f23fcc7381c1efdea47161005fa.tar.gz",
+            "https://storage.googleapis.com/mirror.tensorflow.org/gitlab.com/libeigen/eigen/-/archive/4217a9f09018b1eb3ce800919a69c7c3df47f9cb/eigen-4217a9f09018b1eb3ce800919a69c7c3df47f9cb.tar.gz",
+            "https://gitlab.com/libeigen/eigen/-/archive/4217a9f09018b1eb3ce800919a69c7c3df47f9cb/eigen-4217a9f09018b1eb3ce800919a69c7c3df47f9cb.tar.gz",
         ],
     )
 
@@ -567,14 +567,17 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
     )
 
     # Check out LLVM and MLIR from llvm-project.
-    LLVM_COMMIT = "d12f2a2998450213f065ee3c9b21275416cb7f90"
-    LLVM_SHA256 = "4812efde25b9715fc3ea2723f7e5eb7726aaf4e7f80f50e6586eb11559c2ceb1"
+    LLVM_COMMIT = "11552433ebfc7243c0b66367bdffaba52e74b354"
+    LLVM_SHA256 = "bbdba20f1b44661b55062b449b5df6491c7272ab980827ff68fc8621fa180a3e"
     LLVM_URLS = [
         "https://storage.googleapis.com/mirror.tensorflow.org/github.com/llvm/llvm-project/archive/{commit}.tar.gz".format(commit = LLVM_COMMIT),
         "https://github.com/llvm/llvm-project/archive/{commit}.tar.gz".format(commit = LLVM_COMMIT),
     ]
     tf_http_archive(
         name = "llvm-project",
+        # TODO: Remove when llvm revision at https://reviews.llvm.org/rG6656e961c08393c3949412ef945ade0272b66fca is
+        # integrated into TF.
+        patch_file = clean_dep("//third_party/llvm:windows_build_fix.patch"),
         sha256 = LLVM_SHA256,
         strip_prefix = "llvm-project-" + LLVM_COMMIT,
         urls = LLVM_URLS,
