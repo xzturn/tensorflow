@@ -38,6 +38,7 @@ load("//third_party/pasta:workspace.bzl", pasta = "repo")
 load("//third_party/psimd:workspace.bzl", psimd = "repo")
 load("//third_party/pthreadpool:workspace.bzl", pthreadpool = "repo")
 load("//third_party/sobol_data:workspace.bzl", sobol_data = "repo")
+load("//third_party/vulkan_headers:workspace.bzl", vulkan_headers = "repo")
 
 def initialize_third_party():
     """ Load third party repositories.  See above load() statements. """
@@ -59,6 +60,7 @@ def initialize_third_party():
     psimd()
     pthreadpool()
     sobol_data()
+    vulkan_headers()
 
 # Sanitize a dependency so that it works correctly from code that includes
 # TensorFlow as a submodule.
@@ -192,11 +194,11 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
         name = "eigen_archive",
         build_file = clean_dep("//third_party:eigen.BUILD"),
         patch_file = clean_dep("//third_party/eigen3:gpu_packet_math.patch"),
-        sha256 = "26ea0481c517ea11c7afd1d2655fdcbefcc90fd5b4ff8a5313b78edd49170f6d",
-        strip_prefix = "eigen-4217a9f09018b1eb3ce800919a69c7c3df47f9cb",
+        sha256 = "33664252213ec4583a6cc2332e75b78e6870855346b4e1063509e8839560dda2",
+        strip_prefix = "eigen-9254974115b6d4db305a1c7a2ef23ebc8a4a819a",
         urls = [
-            "https://storage.googleapis.com/mirror.tensorflow.org/gitlab.com/libeigen/eigen/-/archive/4217a9f09018b1eb3ce800919a69c7c3df47f9cb/eigen-4217a9f09018b1eb3ce800919a69c7c3df47f9cb.tar.gz",
-            "https://gitlab.com/libeigen/eigen/-/archive/4217a9f09018b1eb3ce800919a69c7c3df47f9cb/eigen-4217a9f09018b1eb3ce800919a69c7c3df47f9cb.tar.gz",
+            "https://storage.googleapis.com/mirror.tensorflow.org/gitlab.com/libeigen/eigen/-/archive/9254974115b6d4db305a1c7a2ef23ebc8a4a819a/eigen-9254974115b6d4db305a1c7a2ef23ebc8a4a819a.tar.gz",
+            "https://gitlab.com/libeigen/eigen/-/archive/9254974115b6d4db305a1c7a2ef23ebc8a4a819a/eigen-9254974115b6d4db305a1c7a2ef23ebc8a4a819a.tar.gz",
         ],
     )
 
@@ -567,17 +569,14 @@ def tf_repositories(path_prefix = "", tf_repo_name = ""):
     )
 
     # Check out LLVM and MLIR from llvm-project.
-    LLVM_COMMIT = "11552433ebfc7243c0b66367bdffaba52e74b354"
-    LLVM_SHA256 = "bbdba20f1b44661b55062b449b5df6491c7272ab980827ff68fc8621fa180a3e"
+    LLVM_COMMIT = "71d64f72f934631aa2f12b9542c23f74f256f494"
+    LLVM_SHA256 = "ba6066591b442593a1c71e2844969296962f3dc396fade5ececa307e70cd81cc"
     LLVM_URLS = [
         "https://storage.googleapis.com/mirror.tensorflow.org/github.com/llvm/llvm-project/archive/{commit}.tar.gz".format(commit = LLVM_COMMIT),
         "https://github.com/llvm/llvm-project/archive/{commit}.tar.gz".format(commit = LLVM_COMMIT),
     ]
     tf_http_archive(
         name = "llvm-project",
-        # TODO: Remove when llvm revision at https://reviews.llvm.org/rG6656e961c08393c3949412ef945ade0272b66fca is
-        # integrated into TF.
-        patch_file = clean_dep("//third_party/llvm:windows_build_fix.patch"),
         sha256 = LLVM_SHA256,
         strip_prefix = "llvm-project-" + LLVM_COMMIT,
         urls = LLVM_URLS,

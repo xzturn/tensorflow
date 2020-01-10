@@ -449,6 +449,14 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
           "permutation", ConvertDimensions(instruction->dimensions())));
       MakeAndReturn(TransposeOp);
     }
+    case HloOpcode::kMap: {
+      auto op = func_builder->create<mlir::xla_hlo::MapOp>(
+          loc, result_type, operands,
+          ConvertDimensions(instruction->dimensions()));
+      TF_RETURN_IF_ERROR(
+          ImportComputation(instruction->to_apply(), &op.computation()));
+      return op.getOperation();
+    }
     case HloOpcode::kConvolution: {
       llvm::SmallVector<int64_t, 4> strides, lhs_dilations, rhs_dilations;
       llvm::SmallVector<int64_t, 8> paddings;
@@ -709,7 +717,7 @@ mlir::DenseIntElementsAttr HloFunctionImporter::Convert(
 mlir::NamedAttribute HloFunctionImporter::ConvertPadding(
     llvm::ArrayRef<int64_t> padding) {
   auto ty =
-      mlir::RankedTensorType::get({2, static_cast<int64_t>(padding.size()) / 2},
+      mlir::RankedTensorType::get({static_cast<int64_t>(padding.size()) / 2, 2},
                                   builder_->getIntegerType(64));
   auto attr = DenseIntElementsAttr::get(ty, padding);
   return builder_->getNamedAttr("padding", attr);
