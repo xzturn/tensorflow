@@ -1942,6 +1942,47 @@ func @tanh_unranked(%arg0: tensor<*xf32>) -> tensor<*xf32> {
   return %0 : tensor<*xf32>
 }
 
+// CHECK-LABEL: func @bitcast
+func @bitcast(%arg0: tensor<2xf32>) -> tensor<2xf32> {
+  // CHECK:  "xla_hlo.bitcast_convert"(%arg0) : (tensor<2xf32>) -> tensor<2xf32>
+  %0 = "tf.Bitcast"(%arg0) : (tensor<2xf32>) -> tensor<2xf32>
+  return %0 : tensor<2xf32>
+}
+
+// CHECK-LABEL: func @bitcast_dynamic
+func @bitcast_dynamic(%arg0: tensor<?xf32>) -> tensor<?xf32> {
+  // CHECK:  "xla_hlo.bitcast_convert"(%arg0) : (tensor<?xf32>) -> tensor<?xf32>
+  %0 = "tf.Bitcast"(%arg0) : (tensor<?xf32>) -> tensor<?xf32>
+  return %0 : tensor<?xf32>
+}
+
+// CHECK-LABEL: func @bitcast_unranked
+func @bitcast_unranked(%arg0: tensor<*xf32>) -> tensor<*xf32> {
+  // CHECK:  "xla_hlo.bitcast_convert"(%arg0) : (tensor<*xf32>) -> tensor<*xf32>
+  %0 = "tf.Bitcast"(%arg0) : (tensor<*xf32>) -> tensor<*xf32>
+  return %0 : tensor<*xf32>
+}
+
+// CHECK-LABEL: func @bitcast_same_widths
+func @bitcast_same_widths(%arg0: tensor<2xf32>) -> tensor<2xi32> {
+  // CHECK:  "xla_hlo.bitcast_convert"(%arg0) : (tensor<2xf32>) -> tensor<2xi32>
+  %0 = "tf.Bitcast"(%arg0) : (tensor<2xf32>) -> tensor<2xi32>
+  return %0 : tensor<2xi32>
+}
+
+// CHECK-LABEL: func @bitcast_smaller_input_width
+func @bitcast_smaller_input_width(%arg0: tensor<2xi8>) -> tensor<2xi64> {
+  // CHECK:  "tf.Bitcast"(%arg0) : (tensor<2xi8>) -> tensor<2xi64>
+  %0 = "tf.Bitcast"(%arg0) : (tensor<2xi8>) -> tensor<2xi64>
+  return %0 : tensor<2xi64>
+}
+
+// CHECK-LABEL: func @bitcast_smaller_output_width
+func @bitcast_smaller_output_width(%arg0: tensor<2xf32>) -> tensor<2xf16> {
+  // CHECK:  "tf.Bitcast"(%arg0) : (tensor<2xf32>) -> tensor<2xf16>
+  %0 = "tf.Bitcast"(%arg0) : (tensor<2xf32>) -> tensor<2xf16>
+  return %0 : tensor<2xf16>
+}
 
 // CHECK-LABEL: reshape
 func @reshape(%arg0: tensor<2xf32>, %arg1: tensor<2xi32>) -> tensor<1x1xf32> {
@@ -3014,13 +3055,47 @@ func @random_shuffle_3D(%input: tensor<4x?x16xf32>) -> tensor<4x?x16xf32> {
 
   // CHECK: [[SWAPED_INDICES:%.*]] = "xla_hlo.get_tuple_element"([[WHILE_OUT]]) {index = 2 : i32} : (tuple<tensor<i32>, tensor<4xi32>, tensor<4xi32>>) -> tensor<4xi32>
   // CHECK: [[GATHER:%.*]] = "xla_hlo.gather"([[INPUT]], [[SWAPED_INDICES]])
-	// CHECK-SAME: dimension_numbers = {collapsed_slice_dims = dense<0> : tensor<1xi64>, index_vector_dim = 1 : i64, offset_dims = dense<[1, 2, 3]> : tensor<3xi64>, start_index_map = dense<0> : tensor<1xi64>}
-	// CHECK-SAME: indices_are_sorted = false
-	// CHECK-SAME: slice_sizes = dense<[1, -1, 16]> : tensor<3xi64>
-	// CHECK: (tensor<4x?x16xf32>, tensor<4xi32>) -> tensor<4x?x16xf32>
+  // CHECK-SAME: dimension_numbers = {collapsed_slice_dims = dense<0> : tensor<1xi64>, index_vector_dim = 1 : i64, offset_dims = dense<[1, 2, 3]> : tensor<3xi64>, start_index_map = dense<0> : tensor<1xi64>}
+  // CHECK-SAME: indices_are_sorted = false
+  // CHECK-SAME: slice_sizes = dense<[1, -1, 16]> : tensor<3xi64>
+  // CHECK: (tensor<4x?x16xf32>, tensor<4xi32>) -> tensor<4x?x16xf32>
 
   // CHECK: return [[GATHER]]
 
   %0 = "tf.RandomShuffle"(%input) : (tensor<4x?x16xf32>) -> (tensor<4x?x16xf32>)
   return %0: tensor<4x?x16xf32>
+}
+
+//===----------------------------------------------------------------------===//
+// tf.VariableShape legalization
+//===----------------------------------------------------------------------===//
+
+// CHECK-LABLE: @variable_shape32
+func @variable_shape32(%input: tensor<!tf.resource<tensor<2x4x8xf32>>>) -> tensor<3xi32> {
+  // CHECK: [[CST:%.*]] = xla_hlo.constant dense<[2, 4, 8]> : tensor<3xi32>
+  %0 = "tf.VariableShape"(%input) : (tensor<!tf.resource<tensor<2x4x8xf32>>>) -> (tensor<3xi32>)
+  // CHECK: return [[CST]]
+  return %0: tensor<3xi32>
+}
+
+// CHECK-LABLE: @variable_shape64
+func @variable_shape64(%input: tensor<!tf.resource<tensor<2x4x8xf32>>>) -> tensor<3xi64> {
+  // CHECK: [[CST:%.*]] = xla_hlo.constant dense<[2, 4, 8]> : tensor<3xi64>
+  %0 = "tf.VariableShape"(%input) : (tensor<!tf.resource<tensor<2x4x8xf32>>>) -> (tensor<3xi64>)
+  // CHECK: return [[CST]]
+  return %0: tensor<3xi64>
+}
+
+// CHECK-LABEL: @variable_shape_unknown_resource
+func @variable_shape_unknown_resource(%input: tensor<!tf.resource>) -> tensor<?xi32> {
+  // CHECK: tf.VariableShape
+  %0 = "tf.VariableShape"(%input) : (tensor<!tf.resource>) -> (tensor<?xi32>)
+  return %0: tensor<?xi32>
+}
+
+// CHECK-LABEL: @variable_shape_unknown_resource_shape
+func @variable_shape_unknown_resource_shape(%input: tensor<!tf.resource<tensor<?x?xf32>>>) -> tensor<2xi32> {
+  // CHECK: tf.VariableShape
+  %0 = "tf.VariableShape"(%input) : (tensor<!tf.resource<tensor<?x?xf32>>>) -> (tensor<2xi32>)
+  return %0: tensor<2xi32>
 }

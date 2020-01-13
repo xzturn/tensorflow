@@ -54,6 +54,20 @@ package(
     licenses = ["notice"],  # Apache 2.0
 )
 
+exports_files(
+    [
+        "context.h",
+        "env_time.h",
+        "logging.h",
+        "monitoring.h",
+        "mutex.h",
+        "net.h",
+        "stacktrace_handler.h",
+        "subprocess.h",
+    ],
+    visibility = ["//tensorflow:__subpackages__"],
+)
+
 cc_library(
     name = "abi",
     srcs = ["abi.cc"],
@@ -870,7 +884,6 @@ tf_cc_test(
         "//tensorflow/core:lib_internal",
         "//tensorflow/core:lib_test_internal",
         "//tensorflow/core:test",
-        "//tensorflow/core:test_main",
     ],
 )
 
