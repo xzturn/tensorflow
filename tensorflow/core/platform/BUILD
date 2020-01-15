@@ -31,6 +31,11 @@ load(
     "tf_windows_aware_platform_deps",
 )
 load(
+    "//tensorflow/core/platform:rules_cc.bzl",
+    "cc_binary",
+    "cc_library",
+)
+load(
     "//tensorflow:tensorflow.bzl",
     "if_not_android",
     "tf_cc_test",
@@ -57,13 +62,35 @@ package(
 exports_files(
     [
         "context.h",
+        "cpu_info.cc",
+        "cpu_info.h",
+        "cuda_libdevice_path.h",
+        "demangle.h",
+        "env.cc",
+        "env.h",
         "env_time.h",
+        "file_system.cc",
+        "file_system.h",
+        "file_system_helper.cc",
+        "file_system_helper.h",
+        "host_info.h",
+        "human_readable_json.h",
+        "init_main.h",
+        "load_library.h",
         "logging.h",
+        "mem.h",
         "monitoring.h",
         "mutex.h",
         "net.h",
+        "numa.h",
+        "snappy.h",
         "stacktrace_handler.h",
         "subprocess.h",
+        "test.h",
+        "threadpool.cc",
+        "threadpool.h",
+        "tracing.cc",
+        "tracing.h",
     ],
     visibility = ["//tensorflow:__subpackages__"],
 )
@@ -134,6 +161,14 @@ cc_library(
         ":logging",
         ":platform_port",
     ],
+)
+
+cc_library(
+    name = "casts",
+    hdrs = ["casts.h"],
+    deps = [
+        ":platform",
+    ] + tf_platform_deps("casts"),
 )
 
 cc_library(
@@ -1038,6 +1073,7 @@ filegroup(
     name = "lib_hdrs",
     srcs = [
         "abi.h",
+        "casts.h",
         "context.h",
         "cpu_feature_guard.h",
         "cpu_info.h",
@@ -1232,6 +1268,7 @@ filegroup(
         "//tensorflow/core/platform:base64.h",
         "//tensorflow/core/platform:blocking_counter.h",
         "//tensorflow/core/platform:byte_order.h",
+        "//tensorflow/core/platform:casts.h",
         "//tensorflow/core/platform:coding.cc",
         "//tensorflow/core/platform:coding.h",
         "//tensorflow/core/platform:context.h",
@@ -1338,6 +1375,7 @@ filegroup(
     name = "legacy_srcs_no_runtime",
     srcs = [
         ":legacy_srcs_common",
+        "//tensorflow/core/platform/default:casts.h",
         "//tensorflow/core/platform/default:context.h",
         "//tensorflow/core/platform/default:cord.h",
         "//tensorflow/core/platform/default:dynamic_annotations.h",
@@ -1429,6 +1467,12 @@ bzl_library(
     name = "build_config_root_bzl",
     srcs = [
         "build_config_root.bzl",
-        "//tensorflow/core/platform/default:build_config_root.bzl",
-    ],
+    ] + tf_platform_alias("build_config_root.bzl"),
+)
+
+bzl_library(
+    name = "rules_cc_bzl",
+    srcs = [
+        "rules_cc.bzl",
+    ] + tf_platform_alias("rules_cc.bzl"),
 )
