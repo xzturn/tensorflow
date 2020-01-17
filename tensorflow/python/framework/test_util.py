@@ -284,6 +284,10 @@ def IsBuiltWithROCm():
   return _pywrap_util_port.IsBuiltWithROCm()
 
 
+def IsBuiltWithXLA():
+  return _pywrap_util_port.IsBuiltWithXLA()
+
+
 def IsBuiltWithNvcc():
   return _pywrap_util_port.IsBuiltWithNvcc()
 
@@ -2920,8 +2924,8 @@ class TensorFlowTestCase(googletest.TestCase):
     else:
       self._assertAllCloseRecursive(a, b, rtol, atol, path, msg)
 
-  # Fix Python 3 compatibility issues
-  if six.PY3:
+  # Fix Python 3+ compatibility issues
+  if not six.PY2:
     # pylint: disable=invalid-name
 
     # Silence a deprecation warning
