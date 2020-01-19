@@ -16,7 +16,6 @@ limitations under the License.
 #ifndef TENSORFLOW_CORE_PROFILER_UTILS_XPLANE_SCHEMA_H_
 #define TENSORFLOW_CORE_PROFILER_UTILS_XPLANE_SCHEMA_H_
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -43,6 +42,8 @@ enum HostEventType {
   kExecutorDoneCallback,
   kMemoryAllocation,
   kMemoryDeallocation,
+  // Performance counter related.
+  kRemotePerf,
   // tf.data captured function events.
   kTfDataCapturedFunctionRun,
   kTfDataCapturedFunctionRunWithBorrowedArgs,
@@ -65,9 +66,8 @@ enum HostEventType {
   kLastHostEventType = kPartitionedCallOp,
 };
 
-// TODO(jihochoi): Rename it to ReservedStatMetadataId.
 enum StatType {
-  kFirstStatType = 1 << 10,
+  kFirstStatType = 0,
   kUnknownStatType = kFirstStatType,
   // TraceMe arguments.
   kStepId,
@@ -105,6 +105,13 @@ enum StatType {
   kTfOp,
   kHloOp,
   kHloModule,
+  // Performance counter related.
+  kRawValue,
+  kScaledValue,
+  kThreadId,
+  // XLA metadata map related.
+  kSelfDurationPs,
+  kMinDurationPs,
   // Device capability related.
   kDevCapClockRateKHz,
   kDevCapCoreCount,
@@ -129,18 +136,14 @@ inline bool IsHostEventType(HostEventType event_type,
 absl::Span<const absl::string_view> GetStatTypeStrMap();
 
 inline absl::string_view GetStatTypeStr(StatType stat_type) {
-  return GetStatTypeStrMap()[stat_type - StatType::kFirstStatType];
+  return GetStatTypeStrMap()[stat_type];
 }
 
 inline bool IsStatType(StatType stat_type, absl::string_view stat_name) {
   return GetStatTypeStr(stat_type) == stat_name;
 }
 
-const absl::flat_hash_map<absl::string_view, StatType>& GetStatTypeMap();
-
 StatType GetStatType(absl::string_view stat_name);
-
-int GetNumStatTypes();
 
 }  // namespace profiler
 }  // namespace tensorflow

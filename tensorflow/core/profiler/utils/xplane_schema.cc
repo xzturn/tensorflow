@@ -15,6 +15,7 @@ limitations under the License.
 
 #include "tensorflow/core/profiler/utils/xplane_schema.h"
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "tensorflow/core/lib/gtl/map_util.h"
 
@@ -41,6 +42,8 @@ static const absl::string_view kHostEventTypeMetadataMap[] = {
     "ExecutorDoneCallback",
     "MemoryAllocation",
     "MemoryDeallocation",
+    // Performance counter related.
+    "kRemotePerf",
     // tf data captured function events.
     "InstantiatedCapturedFunction::Run",
     "InstantiatedCapturedFunction::RunWithBorrowedArgs",
@@ -67,6 +70,7 @@ static_assert(sizeof(kHostEventTypeMetadataMap) / sizeof(absl::string_view) ==
               "Mismatch between enum and string map.");
 
 static const absl::string_view kStatTypeStrMap[] = {
+    // TraceMe arguments.
     "UnknownStatType",
     "id",
     "parent_step_id",
@@ -88,6 +92,7 @@ static const absl::string_view kStatTypeStrMap[] = {
     "bytes_available",
     "fragmentation",
     "peak_bytes_in_use",
+    // Device trace arguments.
     "device_id",
     "context_id",
     "correlation_id",
@@ -95,12 +100,21 @@ static const absl::string_view kStatTypeStrMap[] = {
     "memalloc_details",
     "kernel_details",
     "stream",
+    // Stats added when processing traces.
     "group_id",
     "step_name",
     "level 0",
     "tf_op",
     "hlo_op",
     "hlo_module",
+    // Performance counter related.
+    "Raw Value",
+    "Scaled Value",
+    "Thread Id",
+    // XLA metadata map related.
+    "SELF_DURATION_PS",
+    "MIN_DURATION_PS",
+    // Device capability related.
     "clock_rate",
     "core_count",
     "memory_bandwidth",
@@ -120,8 +134,6 @@ absl::Span<const absl::string_view> GetHostEventTypeStrMap() {
 absl::Span<const absl::string_view> GetStatTypeStrMap() {
   return absl::MakeConstSpan(kStatTypeStrMap, kNumStatTypes);
 }
-
-int GetNumStatTypes() { return kNumStatTypes; }
 
 const absl::flat_hash_map<absl::string_view, StatType>& GetStatTypeMap() {
   static absl::flat_hash_map<absl::string_view, StatType>* stats_type_map =
@@ -163,6 +175,14 @@ const absl::flat_hash_map<absl::string_view, StatType>& GetStatTypeMap() {
           {"tf_op", kTfOp},
           {"hlo_op", kHloOp},
           {"hlo_module", kHloModule},
+          // Performance counter related.
+          {"Raw Value", kRawValue},
+          {"Scaled Value", kScaledValue},
+          {"Thread Id", kThreadId},
+          // XLA metadata map related.
+          {"SELF_DURATION_PS", kSelfDurationPs},
+          {"MIN_DURATION_PS", kMinDurationPs},
+          // Device capability related.
           {"clock_rate", kDevCapClockRateKHz},
           {"core_count", kDevCapCoreCount},
           {"memory_bandwidth", kDevCapMemoryBandwidth},
