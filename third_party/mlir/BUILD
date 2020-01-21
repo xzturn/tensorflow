@@ -18,8 +18,9 @@ package_group(
 )
 
 exports_files([
-    "run_lit.sh",
     "LICENSE.TXT",
+    "include/mlir/Dialect/LLVMIR/LLVMOps.td",
+    "run_lit.sh",
 ])
 
 cc_library(
@@ -975,6 +976,10 @@ gentbl(
         (
             "-gen-spirv-enum-avail-defs",
             "include/mlir/Dialect/SPIRV/SPIRVEnumAvailability.cpp.inc",
+        ),
+        (
+            "-gen-spirv-capability-implication",
+            "include/mlir/Dialect/SPIRV/SPIRVCapabilityImplication.inc",
         ),
     ],
     tblgen = ":mlir-tblgen",
