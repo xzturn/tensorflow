@@ -630,6 +630,12 @@ class TPUVariableMixin(object):
     else:
       return self._read_variable_op()
 
+  def value(self):
+    if _enclosing_tpu_context() is None:
+      return super(TPUVariableMixin, self).value()
+    else:
+      return self._read_variable_op()
+
   @property
   def constraint(self):
     return self.primary.constraint
@@ -1079,6 +1085,14 @@ class SyncOnReadVariable(DistributedVariable):
             tuple(_assign_on_device(v.device, v, tensor) for v in self._values))
       else:
         return self.get().assign(*args, **kwargs)
+
+  def value(self):
+    with _enter_or_assert_strategy(self._distribute_strategy):
+      if distribution_strategy_context.in_cross_replica_context():
+        return self._get_cross_replica()
+      else:
+        # _get_closest() returns a Variable.
+        return self._get_closest().value()
 
   @property
   def aggregation(self):
