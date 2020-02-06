@@ -241,6 +241,22 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
       }
       MakeAndReturn(BroadcastInDimOp);
     }
+#define MakeAndReturnBatchNormOp(batch_norm_op)                         \
+  {                                                                     \
+    attributes.push_back(builder_->getNamedAttr(                        \
+        "epsilon", builder_->getF32FloatAttr(instruction->epsilon()))); \
+    attributes.push_back(builder_->getNamedAttr(                        \
+        "feature_index",                                                \
+        builder_->getI64IntegerAttr(instruction->feature_index())));    \
+    MakeAndReturn(batch_norm_op);                                       \
+  }
+    case HloOpcode::kBatchNormGrad:
+      MakeAndReturnBatchNormOp(BatchNormGradOp);
+    case HloOpcode::kBatchNormInference:
+      MakeAndReturnBatchNormOp(BatchNormInferenceOp);
+    case HloOpcode::kBatchNormTraining:
+      MakeAndReturnBatchNormOp(BatchNormTrainingOp);
+
     case HloOpcode::kDot: {
       attributes.push_back(ConvertPrecisionConfig(instruction));
 
@@ -525,12 +541,14 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
       // broadcast dimensions are never added here because they don't exist as
       // part of the HLO instruction. They are only a convenience in the XLA
       // builder API.
+      NoAttributeCase(kAbs, AbsOp);
       NoAttributeCase(kAdd, AddOp);
       NoAttributeCase(kAfterAll, AfterAllOp);
       NoAttributeCase(kAnd, AndOp);
       NoAttributeCase(kAtan2, Atan2Op);
       NoAttributeCase(kBitcastConvert, BitcastConvertOp);
       NoAttributeCase(kConvert, ConvertOp);
+      NoAttributeCase(kCeil, CeilOp);
       NoAttributeCase(kClamp, ClampOp);
       NoAttributeCase(kComplex, ComplexOp);
       NoAttributeCase(kCos, CosOp);
@@ -538,6 +556,7 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
       NoAttributeCase(kExp, ExpOp);
       NoAttributeCase(kExpm1, Expm1Op);
       NoAttributeCase(kFloor, FloorOp);
+      NoAttributeCase(kIsFinite, IsFiniteOp);
       NoAttributeCase(kImag, ImagOp);
       NoAttributeCase(kLog, LogOp);
       NoAttributeCase(kLog1p, Log1pOp);
@@ -562,7 +581,9 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
       NoAttributeCase(kShiftLeft, ShiftLeftOp);
       NoAttributeCase(kShiftRightArithmetic, ShiftRightArithmeticOp);
       NoAttributeCase(kShiftRightLogical, ShiftRightLogicalOp);
+      NoAttributeCase(kSign, SignOp);
       NoAttributeCase(kSin, SinOp);
+      NoAttributeCase(kSqrt, SqrtOp);
       NoAttributeCase(kSubtract, SubOp);
       NoAttributeCase(kTanh, TanhOp);
       NoAttributeCase(kTuple, TupleOp);
