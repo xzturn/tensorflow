@@ -46633,6 +46633,34 @@ func LoadTPUEmbeddingMDLAdagradLightParameters(scope *Scope, parameters tf.Outpu
 	return scope.AddOperation(opspec)
 }
 
+// Converts a tensor to a scalar predicate.
+//
+// Converts a tensor to a scalar predicate with the following rules:
+//
+// - For 0D tensors, truthiness is determined by comparing against a "zero"
+//   value. For numerical types it is the obvious zero. For strings it is the
+//   empty string.
+//
+// - For >0D tensors, truthiness is determined by looking at the number of
+//   elements. If has zero elements, then the result is false. Otherwise the
+//   result is true.
+//
+// This matches the behavior of If and While for determining if a tensor counts
+// as true/false for a branch condition.
+func ToBool(scope *Scope, input tf.Output) (output tf.Output) {
+	if scope.Err() != nil {
+		return
+	}
+	opspec := tf.OpSpec{
+		Type: "ToBool",
+		Input: []tf.Input{
+			input,
+		},
+	}
+	op := scope.AddOperation(opspec)
+	return op.Output(0)
+}
+
 // GenerateBoundingBoxProposalsAttr is an optional argument to GenerateBoundingBoxProposals.
 type GenerateBoundingBoxProposalsAttr func(optionalAttr)
 

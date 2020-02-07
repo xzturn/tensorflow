@@ -256,6 +256,7 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
       MakeAndReturnBatchNormOp(BatchNormInferenceOp);
     case HloOpcode::kBatchNormTraining:
       MakeAndReturnBatchNormOp(BatchNormTrainingOp);
+#undef MakeAndReturnBatchNormOp
 
     case HloOpcode::kDot: {
       attributes.push_back(ConvertPrecisionConfig(instruction));
@@ -319,6 +320,14 @@ StatusOr<mlir::Operation*> HloFunctionImporter::ImportInstruction(
           builder_->getBoolAttr(gather_instruction->indices_are_sorted())));
 
       MakeAndReturn(GatherOp);
+    }
+    case HloOpcode::kDynamicSlice: {
+      std::vector<int64_t> slice_sizes(
+          instruction->dynamic_slice_sizes().begin(),
+          instruction->dynamic_slice_sizes().end());
+      attributes.push_back(
+          builder_->getNamedAttr("slice_sizes", Convert(slice_sizes)));
+      MakeAndReturn(DynamicSliceOp);
     }
     case HloOpcode::kDynamicUpdateSlice: {
       return func_builder
