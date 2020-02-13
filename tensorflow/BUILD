@@ -188,6 +188,12 @@ config_setting(
 )
 
 config_setting(
+    name = "fuchsia",
+    values = {"cpu": "fuchsia"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
     name = "ios_x86_64",
     values = {
         "crosstool_top": "//tools/osx/crosstool:crosstool",
@@ -589,7 +595,7 @@ tf_cc_shared_object(
         "//tensorflow/core:gpu_runtime_impl",
         "//tensorflow/core/grappler/optimizers:custom_graph_optimizer_registry_impl",
         "//tensorflow/core:lib_internal_impl",
-        "//tensorflow/core/profiler/lib:profiler_session_impl",
+        "//tensorflow/core/profiler:profiler_impl",
         "//tensorflow/stream_executor:stream_executor_impl",
         "//tensorflow:tf_framework_version_script.lds",
     ] + tf_additional_binary_deps(),
@@ -909,7 +915,6 @@ py_library(
         "//conditions:default": [":tf_python_api_gen_v1"],
     }) + [
         ":root_init_gen",
-        ":virtual_root_init_gen",
         "//tensorflow/python/keras/api:keras_python_api_gen",
         "//tensorflow/python/keras/api:keras_python_api_gen_compat_v1",
         "//tensorflow/python/keras/api:keras_python_api_gen_compat_v2",
