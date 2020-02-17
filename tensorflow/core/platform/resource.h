@@ -1,4 +1,4 @@
-/* Copyright 2015 The TensorFlow Authors. All Rights Reserved.
+/* Copyright 2020 The TensorFlow Authors. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,9 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#ifndef TENSORFLOW_STREAM_EXECUTOR_PLATFORM_THREAD_ANNOTATIONS_H_
-#define TENSORFLOW_STREAM_EXECUTOR_PLATFORM_THREAD_ANNOTATIONS_H_
+#ifndef TENSORFLOW_CORE_PLATFORM_RESOURCE_H_
+#define TENSORFLOW_CORE_PLATFORM_RESOURCE_H_
 
-#include "tensorflow/core/platform/thread_annotations.h"
+#include "tensorflow/core/platform/stringpiece.h"
 
-#endif  // TENSORFLOW_STREAM_EXECUTOR_PLATFORM_THREAD_ANNOTATIONS_H_
+namespace tensorflow {
+
+// Tracks resource usage for tagged code paths.
+class ResourceTagger {
+ public:
+  ResourceTagger(StringPiece key, StringPiece value);
+};
+
+}  // namespace tensorflow
+
+#endif  // TENSORFLOW_CORE_PLATFORM_RESOURCE_H_

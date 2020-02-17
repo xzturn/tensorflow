@@ -59,7 +59,6 @@ LIBS := \
 CXXFLAGS := -O3 -DNDEBUG -fPIC
 CXXFLAGS += $(EXTRA_CXXFLAGS)
 CFLAGS := ${CXXFLAGS}
-CXXFLAGS += --std=c++11
 LDOPTS := -L/usr/local/lib
 ARFLAGS := -r
 TARGET_TOOLCHAIN_PREFIX :=
@@ -114,10 +113,11 @@ $(wildcard tensorflow/lite/tools/optimize/sparsity/*.cc) \
 $(PROFILER_SRCS) \
 tensorflow/lite/tools/make/downloads/farmhash/src/farmhash.cc \
 tensorflow/lite/tools/make/downloads/fft2d/fftsg.c \
+tensorflow/lite/tools/make/downloads/fft2d/fftsg2d.c \
 tensorflow/lite/tools/make/downloads/flatbuffers/src/util.cpp
 CORE_CC_ALL_SRCS += \
 	$(shell find tensorflow/lite/tools/make/downloads/absl/absl/ \
-	             -type f -name \*.cc | grep -v test | grep -v benchmark | grep -v synchronization | grep -v debugging)
+	             -type f -name \*.cc | grep -v test | grep -v benchmark | grep -v synchronization | grep -v debugging | grep -v hash | grep -v flags)
 endif
 # Remove any duplicates.
 CORE_CC_ALL_SRCS := $(sort $(CORE_CC_ALL_SRCS))
@@ -132,7 +132,6 @@ $(wildcard tensorflow/lite/*/*/*/*test.cc) \
 $(wildcard tensorflow/lite/kernels/*test_main.cc) \
 $(wildcard tensorflow/lite/kernels/*test_util*.cc) \
 tensorflow/lite/experimental/ruy/tune_tool.cc \
-tensorflow/lite/tools/make/downloads/absl/absl/hash/internal/print_hash_of.cc \
 $(MINIMAL_SRCS)
 
 BUILD_WITH_MMAP ?= true

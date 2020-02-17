@@ -29,6 +29,7 @@ load(
     "tf_platform_deps",
     "tf_protobuf_compiler_deps",
     "tf_protobuf_deps",
+    "tf_resource_deps",
     "tf_windows_aware_platform_deps",
 )
 load(
@@ -44,6 +45,7 @@ load(
     "tf_cc_tests",
     "tf_copts",  # @unused
     "tf_cuda_library",
+    "tf_portable_full_lite_protos",
 )
 load(
     "@local_config_rocm//rocm:build_defs.bzl",
@@ -86,6 +88,7 @@ exports_files(
         "net.h",
         "numa.h",
         "resource_loader.h",
+        "resource.h",
         "snappy.h",
         "stacktrace_handler.h",
         "subprocess.h",
@@ -449,10 +452,10 @@ cc_library(
         "protobuf_util.cc",
     ],
     hdrs = ["protobuf.h"],
-    defines = select({
-        "//tensorflow:android": ["TENSORFLOW_LITE_PROTOS"],
-        "//conditions:default": [],
-    }),
+    defines = tf_portable_full_lite_protos(
+        full = [],
+        lite = ["TENSORFLOW_LITE_PROTOS"],
+    ),
     deps = [
         ":platform",
         ":types",
@@ -510,6 +513,12 @@ cc_library(
         ":platform",
         "@com_googlesource_code_re2//:re2",
     ],
+)
+
+cc_library(
+    name = "resource",
+    textual_hdrs = ["resource.h"],
+    deps = tf_resource_deps(),
 )
 
 cc_library(
@@ -1181,6 +1190,7 @@ filegroup(
         "profile_utils/cpu_utils.h",
         "profile_utils/i_cpu_utils_helper.h",
         "protobuf.h",
+        "resource.h",
         "stacktrace.h",
         "stacktrace_handler.h",
         "status.h",
@@ -1396,6 +1406,7 @@ filegroup(
         "protobuf_util.cc",
         "raw_coding.h",
         "refcount.h",
+        "resource.h",
         "scanner.cc",
         "scanner.h",
         "setround.cc",

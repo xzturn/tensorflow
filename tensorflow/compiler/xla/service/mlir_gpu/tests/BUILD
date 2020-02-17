@@ -25,10 +25,13 @@ package_group(
 tf_cc_test(
     name = "mlir_gpu_lhlo_gen_test",
     srcs = if_cuda_is_configured(["mlir_gpu_lhlo_gen_test.cc"]),
-    tags = tf_cuda_tests_tags() + ["no_rocm"],
+    tags = tf_cuda_tests_tags() + [
+        "no_rocm",
+        "no_oss",  # TODO(b/149544192): Fix the test.
+    ],
     deps = [
         "//tensorflow/core:test_main",
-        "//tensorflow/core/platform:test",
+        "//tensorflow/core:test",
     ] + if_cuda_is_configured([
         "//tensorflow/compiler/xla/service:gpu_plugin_mlir",
         "//tensorflow/compiler/xla/service/mlir_gpu:mlir_irgen_test_base",
