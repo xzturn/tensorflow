@@ -20,14 +20,15 @@ limitations under the License.
 namespace tflite {
 namespace benchmark {
 
-ProfilingListener::ProfilingListener(Interpreter* interpreter,
-                                     uint32_t max_num_entries,
-                                     std::string csv_file_path)
-    : interpreter_(interpreter),
-      profiler_(max_num_entries),
-      run_summarizer_(!csv_file_path.empty()),
-      init_summarizer_(!csv_file_path.empty()),
-      csv_file_path_(csv_file_path) {
+ProfilingListener::ProfilingListener(
+    Interpreter* interpreter, uint32_t max_num_entries,
+    const std::string& csv_file_path,
+    std::shared_ptr<profiling::ProfileSummaryFormatter> summarizer_formatter)
+    : run_summarizer_(summarizer_formatter),
+      init_summarizer_(summarizer_formatter),
+      csv_file_path_(csv_file_path),
+      interpreter_(interpreter),
+      profiler_(max_num_entries) {
   TFLITE_BENCHMARK_CHECK(interpreter);
   interpreter_->SetProfiler(&profiler_);
 

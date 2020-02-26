@@ -32,6 +32,7 @@ limitations under the License.
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/op_resolver.h"
+#include "tensorflow/lite/profiling/profile_summary_formatter.h"
 #include "tensorflow/lite/string_util.h"
 #include "tensorflow/lite/tools/benchmark/benchmark_utils.h"
 #include "tensorflow/lite/tools/benchmark/delegate_provider.h"
@@ -182,6 +183,13 @@ std::vector<int> TfLiteIntArrayToVector(const TfLiteIntArray* int_array) {
     values.push_back(int_array->data[i]);
   }
   return values;
+}
+
+std::shared_ptr<profiling::ProfileSummaryFormatter>
+CreateProfileSummaryFormatter(bool format_as_csv) {
+  return format_as_csv
+             ? std::make_shared<profiling::ProfileSummaryCSVFormatter>()
+             : std::make_shared<profiling::ProfileSummaryDefaultFormatter>();
 }
 
 }  // namespace
@@ -565,7 +573,9 @@ BenchmarkTfLiteModel::MayCreateProfilingListener() const {
   if (!params_.Get<bool>("enable_op_profiling")) return nullptr;
   return std::unique_ptr<BenchmarkListener>(new ProfilingListener(
       interpreter_.get(), params_.Get<int32_t>("max_profiling_buffer_entries"),
-      params_.Get<std::string>("profiling_output_csv_file")));
+      params_.Get<std::string>("profiling_output_csv_file"),
+      CreateProfileSummaryFormatter(
+          !params_.Get<std::string>("profiling_output_csv_file").empty())));
 }
 
 TfLiteStatus BenchmarkTfLiteModel::RunImpl() { return interpreter_->Invoke(); }

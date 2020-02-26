@@ -118,6 +118,7 @@ cc_library(
     deps = [
         ":benchmark_model_lib",
         "//tensorflow/lite/profiling:profile_summarizer",
+        "//tensorflow/lite/profiling:profile_summary_formatter",
         "//tensorflow/lite/profiling:profiler",
     ],
 )
@@ -148,6 +149,7 @@ cc_library(
         "//tensorflow/lite/experimental/ruy/profiler",
         "//tensorflow/lite/kernels:builtin_ops",
         "//tensorflow/lite/profiling:profiler",
+        "//tensorflow/lite/profiling:profile_summary_formatter",
         "//tensorflow/lite/tools/evaluation:utils",
     ] + select({
         "//tensorflow:fuchsia": [],

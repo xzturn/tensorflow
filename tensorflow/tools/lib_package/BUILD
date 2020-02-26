@@ -161,7 +161,6 @@ genrule(
         "@nasm//:LICENSE",
         "@nsync//:LICENSE",
         "@png//:LICENSE",
-        "@six_archive//:LICENSE",
         "@snappy//:COPYING",
         "@sobol_data//:LICENSE",
         "@zlib//:zlib.h",
@@ -173,6 +172,9 @@ genrule(
         "//tensorflow:no_aws_support": [],
         "//conditions:default": [
             "@aws//:LICENSE",
+            "@aws-checksums//:LICENSE",
+            "@aws-c-event-stream//:LICENSE",
+            "@aws-c-common//:LICENSE",
         ],
     }) + select({
         "//tensorflow:android": [],
@@ -241,7 +243,6 @@ genrule(
         "@nasm//:LICENSE",
         "@nsync//:LICENSE",
         "@png//:LICENSE",
-        "@six_archive//:LICENSE",
         "@snappy//:COPYING",
         "@sobol_data//:LICENSE",
         "@zlib//:zlib.h",
@@ -253,6 +254,9 @@ genrule(
         "//tensorflow:no_aws_support": [],
         "//conditions:default": [
             "@aws//:LICENSE",
+            "@aws-checksums//:LICENSE",
+            "@aws-c-event-stream//:LICENSE",
+            "@aws-c-common//:LICENSE",
         ],
     }) + select({
         "//tensorflow:android": [],
