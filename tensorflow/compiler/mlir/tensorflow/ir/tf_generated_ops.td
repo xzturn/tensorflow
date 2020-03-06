@@ -6661,9 +6661,9 @@ receive 0, 0, and 1, respectively. The appropriate bits in `begin_mask` and
     // `begin_indices`, `end_indices`, and `strides` with their canonical
     // values, respectively.
     bool GetSlicedBoundRanges(
-      ::llvm::SmallVectorImpl<int64_t> *begin_indices,
-      ::llvm::SmallVectorImpl<int64_t> *end_indices,
-      ::llvm::SmallVectorImpl<int64_t> *strides);
+      ::llvm::SmallVectorImpl<int64_t> *slice_begin,
+      ::llvm::SmallVectorImpl<int64_t> *slice_end,
+      ::llvm::SmallVectorImpl<int64_t> *slice_stride);
   }];
 }
 
@@ -6710,10 +6710,10 @@ shape of `StridedSlice`'s `input`.
     // `begin_indices`, `end_indices`, and `strides` with their canonical
     // values, respectively.
     bool GetSlicedShapeAndBoundRanges(
-      ::llvm::SmallVectorImpl<int64_t> *shape,
-      ::llvm::SmallVectorImpl<int64_t> *begin_indices,
-      ::llvm::SmallVectorImpl<int64_t> *end_indices,
-      ::llvm::SmallVectorImpl<int64_t> *strides);
+      ::llvm::SmallVectorImpl<int64_t> *input_shape,
+      ::llvm::SmallVectorImpl<int64_t> *slice_begin,
+      ::llvm::SmallVectorImpl<int64_t> *slice_end,
+      ::llvm::SmallVectorImpl<int64_t> *slice_stride);
   }];
 }
 
@@ -7052,6 +7052,27 @@ lengths: Output tensor containing sizes of the 0th dimension of tensors in the l
 
   TF_DerivedOperandTypeAttr shape_type = TF_DerivedOperandTypeAttr<1>;
   TF_DerivedResultTypeAttr element_dtype = TF_DerivedResultTypeAttr<0>;
+}
+
+def TF_TensorListElementShapeOp : TF_Op<"TensorListElementShape", [NoSideEffect]> {
+  let summary = "The shape of the elements of the given list, as a tensor.";
+
+  let description = [{
+input_handle: the list
+  element_shape: the shape of elements of the list
+  }];
+
+  let arguments = (ins
+    TF_VariantTensor:$input_handle
+  );
+
+  let results = (outs
+    TF_I32OrI64Tensor:$element_shape
+  );
+
+  TF_DerivedResultTypeAttr shape_type = TF_DerivedResultTypeAttr<0>;
+
+  let hasFolder = 1;
 }
 
 def TF_TensorListFromTensorOp : TF_Op<"TensorListFromTensor", [NoSideEffect]> {
@@ -7822,6 +7843,8 @@ shape(t) ==> [2, 2, 3]
   let verifier = [{
     return Verify(*this);
   }];
+
+  let hasFolder = 1;
 }
 
 def TF_WhereOp : TF_Op<"Where", [NoSideEffect]> {
@@ -8015,8 +8038,9 @@ used to look up the program in the compilation cache.
 
   let results = (outs
     TF_StrTensor:$compilation_status,
-    TF_StrTensor:$program
+    Variadic<TF_StrTensor>:$program
   );
 
+  TF_DerivedResultSizeAttr num_computations = TF_DerivedResultSizeAttr<1>;
   TF_DerivedOperandSizeAttr NumDynamicShapes = TF_DerivedOperandSizeAttr<0>;
 }
