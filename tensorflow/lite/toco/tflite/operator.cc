@@ -255,23 +255,6 @@ class Sub : public BuiltinOperator<SubOperator, ::tflite::SubOptions,
     op->fused_activation_function =
         ActivationFunction::Deserialize(options.fused_activation_function());
   }
-
-  int GetVersion(const OperatorSignature& op_signature) const override {
-    const string& input1_name = op_signature.op->inputs[0];
-    const string& input2_name = op_signature.op->inputs[1];
-    const Array& input1_array = op_signature.model->GetArray(input1_name);
-    const Array& input2_array = op_signature.model->GetArray(input2_name);
-    ::tflite::OpSignature op_sig =
-        GetVersioningOpSig(builtin_op(), op_signature);
-    if (input1_array.has_shape() && input2_array.has_shape()) {
-      op_sig.options.sub.num_dims =
-          std::max(input1_array.shape().dimensions_count(),
-                   input2_array.shape().dimensions_count());
-      op_sig.options.sub.need_broadcast =
-          (input1_array.shape() != input2_array.shape());
-    }
-    return ::tflite::GetBuiltinOperatorVersion(op_sig);
-  }
 };
 
 class Div : public BuiltinOperator<DivOperator, ::tflite::DivOptions,
@@ -1673,21 +1656,17 @@ class TensorFlowUnsupported : public BaseOperator {
     for (size_t i = 0; i < keys.size(); ++i) {
       const auto key = keys[i].AsKey();
       const auto& value = m[key];
-      // TODO(wvo): hack to make this code compile with 2 different API
-      // versions.
-      // Please remove once OS/internal versions are in sync.
-      // See hardcoded values in the switch below.
       switch (value.GetType()) {
-        case 5:  // flexbuffers::FBT_STRING:
+        case flexbuffers::FBT_STRING:
           (*attr)[key].set_s(value.AsString().c_str());
           break;
-        case 1:  // flexbuffers::FBT_INT:
+        case flexbuffers::FBT_INT:
           (*attr)[key].set_i(value.AsInt64());
           break;
-        case 3:  // flexbuffers::FBT_FLOAT:
+        case flexbuffers::FBT_FLOAT:
           (*attr)[key].set_f(value.AsFloat());
           break;
-        case 26:  // flexbuffers::FBT_BOOL:
+        case flexbuffers::FBT_BOOL:
           (*attr)[key].set_b(value.AsBool());
           if (string(key) == "_output_quantized") {
             op->quantized = value.AsBool();
@@ -1696,7 +1675,7 @@ class TensorFlowUnsupported : public BaseOperator {
             op->support_output_type_float_in_quantized_op = value.AsBool();
           }
           break;
-        case 11: {  // flexbuffers::FBT_VECTOR_INT: {
+        case flexbuffers::FBT_VECTOR_INT: {
           auto* list = (*attr)[key].mutable_list();
           const auto& vector = value.AsTypedVector();
           for (size_t i = 0; i < vector.size(); i++) {
@@ -1704,7 +1683,7 @@ class TensorFlowUnsupported : public BaseOperator {
           }
           break;
         }
-        case 13: {  // flexbuffers::FBT_VECTOR_FLOAT: {
+        case flexbuffers::FBT_VECTOR_FLOAT: {
           auto* list = (*attr)[key].mutable_list();
           const auto& vector = value.AsTypedVector();
           for (size_t i = 0; i < vector.size(); i++) {
@@ -1712,7 +1691,7 @@ class TensorFlowUnsupported : public BaseOperator {
           }
           break;
         }
-        case 15: {  // flexbuffers::FBT_VECTOR_STRING: {
+        case 15 /* TO_DO(wvo): flexbuffers::FBT_VECTOR_STRING_DEPRECATED*/: {
           auto* list = (*attr)[key].mutable_list();
           const auto& vector = value.AsTypedVector();
           for (size_t i = 0; i < vector.size(); i++) {

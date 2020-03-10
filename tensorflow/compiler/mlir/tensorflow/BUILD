@@ -62,6 +62,14 @@ gentbl(
             "-gen-op-doc",
             "g3doc/tf_ops.md",
         ),
+        (
+            "-gen-struct-attr-decls",
+            "ir/tf_structs.h.inc",
+        ),
+        (
+            "-gen-struct-attr-defs",
+            "ir/tf_structs.cc.inc",
+        ),
     ],
     tblgen = "@llvm-project//mlir:mlir-tblgen",
     td_file = "ir/tf_ops.td",
@@ -167,6 +175,21 @@ cc_library(
         "ir/tf_types.h",
     ],
     deps = [
+        "@llvm-project//llvm:support",
+        "@llvm-project//mlir:IR",
+    ],
+)
+
+cc_library(
+    name = "tensorflow_structs",
+    srcs = [
+        "ir/tf_structs.cc",
+    ],
+    hdrs = [
+        "ir/tf_structs.h",
+    ],
+    deps = [
+        ":tensorflow_ops_inc_gen",
         "@llvm-project//llvm:support",
         "@llvm-project//mlir:IR",
     ],
@@ -294,6 +317,7 @@ cc_library(
         "transforms/bridge_pass.cc",
         "transforms/cluster_formation.cc",
         "transforms/cluster_outlining.cc",
+        "transforms/collection_ops_util.cc",
         "transforms/decompose_resource_ops_pass.cc",
         "transforms/executor_island_coarsening.cc",
         "transforms/executor_tpuv1_inline_tpu_island.cc",
@@ -323,6 +347,7 @@ cc_library(
         "transforms/shape_inference_pass.cc",
         "transforms/sink_constant.cc",
         "transforms/stack_ops_decomposition.cc",
+        "transforms/tensor_list_ops_decomposition.cc",
         "transforms/test_side_effect_analysis.cc",
         "transforms/tf_device_assignment.cc",
         "transforms/tpu_cluster_formation.cc",
@@ -340,6 +365,7 @@ cc_library(
     hdrs = [
         "transforms/batchmatmul_to_einsum.h",
         "transforms/bridge.h",
+        "transforms/collection_ops_util.h",
         "transforms/passes.h",
         "transforms/shape_inference.h",
     ],
@@ -1114,6 +1140,7 @@ cc_library(
     srcs = ["utils/device_util.cc"],
     hdrs = ["utils/device_util.h"],
     deps = [
+        ":tensorflow_structs",
         "//tensorflow/core:core_cpu_lib",
         "//tensorflow/core:framework",
         "@llvm-project//llvm:support",
